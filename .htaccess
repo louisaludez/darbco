@@ -1,0 +1,27 @@
+# DARBCO System — Apache Configuration
+# File   : .htaccess
+# Purpose: Block direct access to PHP class files;
+#          route all requests through index.php
+
+Options -Indexes
+Options -MultiViews
+
+# Protect config and model directories from direct browser access
+<FilesMatch "\.(php)$">
+    # Allow only index.php at the root
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block direct access to config, models, controllers
+    RewriteRule ^(config|models|controllers)/ - [F,L]
+
+    # Allow assets to be served directly
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route everything else through front controller
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
