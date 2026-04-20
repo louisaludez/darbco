@@ -48,20 +48,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
             }
         }
 
+        // Collect box breakdown from form (box_class[] box_spec[] tally[] adj[] should[])
+        $boxBreakdown = [];
+        if (!empty($_POST['bk_spec'])) {
+            foreach ($_POST['bk_spec'] as $i => $spec) {
+                $boxBreakdown[] = [
+                    'box_class' => $_POST['bk_class'][$i]  ?? '',
+                    'box_spec'  => trim($spec),
+                    'tally'     => (int) ($_POST['bk_tally'][$i]  ?? 0),
+                    'adj'       => (int) ($_POST['bk_adj'][$i]    ?? 0),
+                    'should'    => (int) ($_POST['bk_should'][$i] ?? 0),
+                ];
+            }
+        }
+
         $data = [
             'harvest_date'   => $_POST['harvest_date'],
             'worker_id'      => (int) $_POST['worker_id'],
             'boxes_produced' => (int) $_POST['boxes_produced'],
+            'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
+            'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
             'field_location' => trim($_POST['field_location'] ?? ''),
             'notes'          => trim($_POST['notes'] ?? ''),
             'recorded_by'    => (int) $_SESSION[SESS_USER_ID],
         ];
 
-        $newId = $productionModel->create($data, $materials);
+        $newId = $productionModel->create($data, $materials, $boxBreakdown);
         $logger->log(
             (int) $_SESSION[SESS_USER_ID],
             'production_insert',
-            "Production record #{$newId} created for worker '{$data['worker_name']}'.",
+            "Production record #{$newId} created for worker ID {$data['worker_id']}.",
             'production_data',
             $newId
         );
@@ -81,6 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
             'harvest_date'   => $_POST['harvest_date'],
             'worker_id'      => (int) $_POST['worker_id'],
             'boxes_produced' => (int) $_POST['boxes_produced'],
+            'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
+            'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
             'field_location' => trim($_POST['field_location'] ?? ''),
             'notes'          => trim($_POST['notes'] ?? '')
         ];

@@ -11,14 +11,6 @@ declare(strict_types=1);
 
 class Database
 {
-    // --------------- Configuration ---------------
-    private const DB_HOST    = 'localhost';
-    private const DB_PORT    = '3306';
-    private const DB_NAME    = 'darbco_system';
-    private const DB_USER    = 'root';          // ← change in production
-    private const DB_PASS    = 'Accountloui123';              // ← change in production
-    private const DB_CHARSET = 'utf8mb4';
-
     // --------------- Singleton State -------------
     private static ?PDO $instance = null;
 
@@ -36,12 +28,25 @@ class Database
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
+            $envFile = dirname(__DIR__) . '/.env';
+            $env = [];
+            if (file_exists($envFile)) {
+                $env = parse_ini_file($envFile);
+            }
+            
+            $host    = $env['DB_HOST']    ?? 'localhost';
+            $port    = $env['DB_PORT']    ?? '3306';
+            $dbname  = $env['DB_NAME']    ?? 'darbco_system';
+            $user    = $env['DB_USER']    ?? 'root';
+            $pass    = $env['DB_PASS']    ?? '';
+            $charset = $env['DB_CHARSET'] ?? 'utf8mb4';
+
             $dsn = sprintf(
                 'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-                self::DB_HOST,
-                self::DB_PORT,
-                self::DB_NAME,
-                self::DB_CHARSET
+                $host,
+                $port,
+                $dbname,
+                $charset
             );
 
             $options = [
@@ -58,11 +63,11 @@ class Database
                 PDO::ATTR_PERSISTENT         => false,
 
                 // Force strict UTF-8 on every new connection
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$charset} COLLATE {$charset}_unicode_ci",
             ];
 
             try {
-                self::$instance = new PDO($dsn, self::DB_USER, self::DB_PASS, $options);
+                self::$instance = new PDO($dsn, $user, $pass, $options);
             } catch (PDOException $e) {
                 // Log the raw error server-side; never expose it to the client
                 error_log('[DARBCO DB ERROR] ' . $e->getMessage());

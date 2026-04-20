@@ -14,27 +14,28 @@ class Worker
 
     public function getAll(): array
     {
-        $stmt = $this->db->query("SELECT * FROM workers ORDER BY first_name ASC, last_name ASC");
+        $stmt = $this->db->query("SELECT * FROM workers ORDER BY sub_code ASC, first_name ASC, last_name ASC");
         return $stmt->fetchAll();
     }
 
     public function getActive(): array
     {
-        $stmt = $this->db->query("SELECT * FROM workers WHERE is_active = 1 ORDER BY first_name ASC, last_name ASC");
+        $stmt = $this->db->query("SELECT * FROM workers WHERE is_active = 1 ORDER BY sub_code ASC, first_name ASC, last_name ASC");
         return $stmt->fetchAll();
     }
 
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO workers (first_name, last_name, contact_number, is_active)
-             VALUES (:f, :l, :c, :a)'
+            'INSERT INTO workers (sub_code, first_name, last_name, contact_number, is_active)
+             VALUES (:sc, :f, :l, :c, :a)'
         );
         $stmt->execute([
-            ':f' => $data['first_name'],
-            ':l' => $data['last_name'],
-            ':c' => $data['contact_number'] ?? null,
-            ':a' => $data['is_active'] ?? 1
+            ':sc' => $data['sub_code']       ?? null,
+            ':f'  => $data['first_name'],
+            ':l'  => $data['last_name'],
+            ':c'  => $data['contact_number'] ?? null,
+            ':a'  => $data['is_active']      ?? 1
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -43,17 +44,19 @@ class Worker
     {
         $stmt = $this->db->prepare(
             'UPDATE workers
-                SET first_name     = :f,
+                SET sub_code       = :sc,
+                    first_name     = :f,
                     last_name      = :l,
                     contact_number = :c,
                     is_active      = :a
               WHERE worker_id      = :id'
         );
         return $stmt->execute([
+            ':sc' => $data['sub_code']       ?? null,
             ':f'  => $data['first_name'],
             ':l'  => $data['last_name'],
             ':c'  => $data['contact_number'] ?? null,
-            ':a'  => $data['is_active'] ?? 1,
+            ':a'  => $data['is_active']      ?? 1,
             ':id' => $id
         ]);
     }

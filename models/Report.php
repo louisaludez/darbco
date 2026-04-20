@@ -189,4 +189,86 @@ class Report
         );
         return $stmt->fetchAll();
     }
+
+    // ─────────────────────────────────────────────────────────
+    //  PHYSICAL FORM REPORTS
+    // ─────────────────────────────────────────────────────────
+
+    /**
+     * Daily Boxes Per Group report.
+     * Aggregates tally/adj/should counts by date, group, class, and spec.
+     */
+    public function getDailyBoxesPerGroup(string $dateFrom, string $dateTo): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.harvest_date,
+                    p.group_number,
+                    b.box_class,
+                    b.box_spec,
+                    SUM(b.tally_count)     AS total_tally,
+                    SUM(b.adjusted_count)  AS total_adj,
+                    SUM(b.should_be_count) AS total_should,
+                    SUM(b.tally_count + b.adjusted_count) AS total_boxes_produced
+               FROM production_box_breakdown b
+               JOIN production_data p ON p.production_id = b.production_id
+              WHERE p.harvest_date BETWEEN :from AND :to
+              GROUP BY p.harvest_date, p.group_number, b.box_class, b.box_spec
+              ORDER BY p.harvest_date ASC, b.box_class ASC, p.group_number ASC, b.box_spec ASC'
+        );
+        $stmt->execute([':from' => $dateFrom, ':to' => $dateTo]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Daily Production Per Beneficiary report.
+     * Returns per-worker per-day totals with stems cut and box breakdown.
+     */
+    public function getDailyProductionPerBeneficiary(string $dateFrom, string $dateTo): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.harvest_date,
+                    p.production_id,
+                    p.stems_cut,
+                    p.group_number,
+                    COALESCE(w.sub_code, \'\u2014\') AS sub_code,
+                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name,
+                    b.box_class,
+                    b.box_spec,
+                    b.tally_count,
+                    b.adjusted_count,
+                    b.should_be_count,
+                    (b.tally_count + b.adjusted_count) AS boxes_for_spec
+               FROM production_data p
+               LEFT JOIN workers w ON w.worker_id = p.worker_id
+               LEFT JOIN production_box_breakdown b ON b.production_id = p.production_id
+              WHERE p.harvest_date BETWEEN :from AND :to
+              ORDER BY p.harvest_date ASC, w.sub_code ASC, b.box_class ASC, b.box_spec ASC'
+        );
+        $stmt->execute([':from' => $dateFrom, ':to' => $dateTo]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Summary totals for Efficiency Performance report.
+     * Groups by date: total stems cut, total boxes, workers, groups.
+     */
+    public function getEfficiencySummary(string $dateFrom, string $dateTo): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.harvest_date,
+                    COUNT(DISTINCT p.production_id)    AS crew_size,
+                    SUM(p.stems_cut)                   AS total_stems,
+                    SUM(p.boxes_produced)              AS total_boxes,
+                    GROUP_CONCAT(DISTINCT p.group_number ORDER BY p.group_number) AS groups_active,
+                    SUM(CASE WHEN b.box_class = \'A\' THEN (b.tally_count + b.adjusted_count) ELSE 0 END) AS class_a_boxes,
+                    SUM(CASE WHEN b.box_class = \'B\' THEN (b.tally_count + b.adjusted_count) ELSE 0 END) AS class_b_boxes
+               FROM production_data p
+               LEFT JOIN production_box_breakdown b ON b.production_id = p.production_id
+              WHERE p.harvest_date BETWEEN :from AND :to
+              GROUP BY p.harvest_date
+              ORDER BY p.harvest_date ASC'
+        );
+        $stmt->execute([':from' => $dateFrom, ':to' => $dateTo]);
+        return $stmt->fetchAll();
+    }
 }

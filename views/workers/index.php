@@ -30,7 +30,7 @@ $role = $_SESSION[SESS_ROLE];
             <table class="table table-hover darbco-table w-100" id="workersTable">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>Sub Code</th>
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Contact</th>
@@ -43,7 +43,7 @@ $role = $_SESSION[SESS_ROLE];
                 <tbody>
                 <?php foreach ($workers as $w): ?>
                     <tr>
-                        <td><?= $w['worker_id'] ?></td>
+                        <td><span class="badge bg-dark font-monospace"><?= htmlspecialchars($w['sub_code'] ?? '—') ?></span></td>
                         <td class="fw-600"><?= htmlspecialchars($w['first_name']) ?></td>
                         <td class="fw-600"><?= htmlspecialchars($w['last_name']) ?></td>
                         <td><?= htmlspecialchars($w['contact_number'] ?? '—') ?></td>
@@ -59,6 +59,7 @@ $role = $_SESSION[SESS_ROLE];
                             <button class="btn btn-sm btn-outline-primary btn-edit-worker"
                                     data-bs-toggle="modal" data-bs-target="#editWorkerModal"
                                     data-id="<?= $w['worker_id'] ?>"
+                                    data-sub="<?= htmlspecialchars($w['sub_code'] ?? '') ?>"
                                     data-first="<?= htmlspecialchars($w['first_name']) ?>"
                                     data-last="<?= htmlspecialchars($w['last_name']) ?>"
                                     data-contact="<?= htmlspecialchars($w['contact_number']) ?>"
@@ -94,11 +95,16 @@ $role = $_SESSION[SESS_ROLE];
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">ARB Sub Code</label>
+                                <input type="text" name="sub_code" class="form-control font-monospace"
+                                       placeholder="e.g. 042" maxlength="20">
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">First Name *</label>
                                 <input type="text" name="first_name" class="form-control" required>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">Last Name *</label>
                                 <input type="text" name="last_name" class="form-control" required>
                             </div>
@@ -130,11 +136,16 @@ $role = $_SESSION[SESS_ROLE];
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">ARB Sub Code</label>
+                                <input type="text" name="sub_code" id="edit_worker_sub" class="form-control font-monospace"
+                                       maxlength="20" placeholder="e.g. 042">
+                            </div>
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">First Name *</label>
                                 <input type="text" name="first_name" id="edit_worker_first" class="form-control" required>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold">Last Name *</label>
                                 <input type="text" name="last_name" id="edit_worker_last" class="form-control" required>
                             </div>
@@ -165,6 +176,7 @@ $role = $_SESSION[SESS_ROLE];
             btn.addEventListener('click', (e) => {
                 const b = e.currentTarget;
                 document.getElementById('edit_worker_id').value      = b.dataset.id;
+                document.getElementById('edit_worker_sub').value     = b.dataset.sub;
                 document.getElementById('edit_worker_first').value   = b.dataset.first;
                 document.getElementById('edit_worker_last').value    = b.dataset.last;
                 document.getElementById('edit_worker_contact').value = b.dataset.contact;

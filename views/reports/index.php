@@ -54,9 +54,14 @@ $monthlyValuesJson = json_encode($monthlyValues);
                 <div class="col-md-3">
                     <label class="form-label fw-semibold small">Report Type</label>
                     <select name="type" class="form-select form-select-sm" id="reportType">
-                        <option value="production" <?= $reportType === 'production' ? 'selected' : '' ?>>📦 Production Report</option>
-                        <option value="payroll"    <?= $reportType === 'payroll'    ? 'selected' : '' ?>>💰 Payroll Report</option>
-                        <option value="inventory"  <?= $reportType === 'inventory'  ? 'selected' : '' ?>>📦 Inventory Usage</option>
+                        <option value="production"     <?= $reportType === 'production'     ? 'selected' : '' ?>>📦 Production Report</option>
+                        <option value="payroll"         <?= $reportType === 'payroll'        ? 'selected' : '' ?>>💰 Payroll Report</option>
+                        <option value="inventory"       <?= $reportType === 'inventory'      ? 'selected' : '' ?>>📋 Inventory Usage</option>
+                        <optgroup label="── Physical Reports ──">
+                        <option value="boxes_per_group"  <?= $reportType === 'boxes_per_group' ? 'selected' : '' ?>>🗂️ Daily Boxes Per Group</option>
+                        <option value="per_beneficiary"  <?= $reportType === 'per_beneficiary' ? 'selected' : '' ?>>👤 Daily Production Per Beneficiary</option>
+                        <option value="efficiency"       <?= $reportType === 'efficiency'      ? 'selected' : '' ?>>⏱️ Efficiency Performance</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -469,6 +474,226 @@ $monthlyValuesJson = json_encode($monthlyValues);
         });
     });
     </script>
+
+    <!-- ────────────────────────────────────────────────────
+         DAILY BOXES PER GROUP REPORT
+    ──────────────────────────────────────────────────────── -->
+    <?php elseif ($reportType === 'boxes_per_group'): ?>
+
+    <?php
+    // Restructure: [date][group][class][spec] => totals
+    $groupedData = [];
+    $allDates    = [];
+    foreach ($boxesPerGroup as $row) {
+        $d  = $row['harvest_date'];
+        $g  = $row['group_number'] ? 'Group ' . $row['group_number'] : 'No Group';
+        $cl = 'Class ' . $row['box_class'];
+        $sp = $row['box_spec'];
+        $allDates[$d] = true;
+        $groupedData[$d][$g][$cl][$sp] = [
+            'tally'  => $row['total_tally'],
+            'adj'    => $row['total_adj'],
+            'should' => $row['total_should'],
+            'total'  => $row['total_boxes_produced'],
+        ];
+    }
+    $allDates = array_keys($allDates);
+    ?>
+    <div class="table-card mb-4">
+        <div class="card-header"><i class="bi bi-grid-3x2-gap me-2 text-success"></i>Daily Boxes Per Group — <?= htmlspecialchars($dateFrom) ?> to <?= htmlspecialchars($dateTo) ?></div>
+        <div class="table-responsive p-2">
+            <table class="table table-sm table-bordered darbco-table w-100" id="boxesPerGroupTable">
+                <thead class="table-dark">
+                    <tr><th>Date</th><th>Group</th><th>Class</th><th>Box Spec</th><th>Tally</th><th>Adj.</th><th>Should Be</th><th>Total Produced</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($boxesPerGroup as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['harvest_date']) ?></td>
+                    <td><?= $r['group_number'] ? 'Group ' . $r['group_number'] : '<span class="text-muted">—</span>' ?></td>
+                    <td><span class="badge <?= $r['box_class'] === 'A' ? 'bg-success' : 'bg-warning text-dark' ?>">Class <?= $r['box_class'] ?></span></td>
+                    <td class="fw-600"><?= htmlspecialchars($r['box_spec']) ?></td>
+                    <td><?= number_format((int)$r['total_tally']) ?></td>
+                    <td><?= number_format((int)$r['total_adj']) ?></td>
+                    <td><?= number_format((int)$r['total_should']) ?></td>
+                    <td><strong><?= number_format((int)$r['total_boxes_produced']) ?></strong></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($boxesPerGroup)): ?>
+                    <tr><td colspan="8" class="text-center text-muted py-4">No box breakdown data recorded in this period.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ────────────────────────────────────────────────────
+         DAILY PRODUCTION PER BENEFICIARY REPORT
+    ──────────────────────────────────────────────────────── -->
+    <?php elseif ($reportType === 'per_beneficiary'): ?>
+
+    <?php
+    // Group rows by date + worker
+    $byWorker = [];
+    foreach ($perBeneficiary as $row) {
+        $key = $row['harvest_date'] . '||' . $row['production_id'];
+        if (!isset($byWorker[$key])) {
+            $byWorker[$key] = [
+                'date'        => $row['harvest_date'],
+                'sub_code'    => $row['sub_code'],
+                'worker_name' => $row['worker_name'],
+                'stems_cut'   => $row['stems_cut'],
+                'group'       => $row['group_number'],
+                'breakdown'   => [],
+            ];
+        }
+        if ($row['box_spec']) {
+            $byWorker[$key]['breakdown'][] = [
+                'class'  => $row['box_class'],
+                'spec'   => $row['box_spec'],
+                'tally'  => $row['tally_count'],
+                'adj'    => $row['adjusted_count'],
+                'should' => $row['should_be_count'],
+                'total'  => $row['boxes_for_spec'],
+            ];
+        }
+    }
+    ?>
+    <div class="table-card mb-4">
+        <div class="card-header"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Daily Production Per Beneficiary — <?= htmlspecialchars($dateFrom) ?> to <?= htmlspecialchars($dateTo) ?></div>
+        <div class="table-responsive p-2">
+            <table class="table table-sm table-bordered darbco-table w-100" id="perBeneficiaryTable">
+                <thead class="table-dark">
+                    <tr><th>Date</th><th>Sub Code</th><th>ARB Name</th><th>Group</th><th>Stems Cut</th><th>Class</th><th>Spec</th><th>Tally</th><th>Adj.</th><th>Should Be</th><th>Total</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($byWorker as $entry): ?>
+                    <?php $bkCount = count($entry['breakdown']); ?>
+                    <?php if ($bkCount === 0): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($entry['date']) ?></td>
+                        <td><span class="badge bg-dark font-monospace"><?= htmlspecialchars($entry['sub_code']) ?></span></td>
+                        <td class="fw-600"><?= htmlspecialchars($entry['worker_name']) ?></td>
+                        <td><?= $entry['group'] ? 'Group ' . $entry['group'] : '—' ?></td>
+                        <td><?= number_format((int)$entry['stems_cut']) ?></td>
+                        <td colspan="6" class="text-muted small">No box breakdown recorded</td>
+                    </tr>
+                    <?php else: ?>
+                        <?php foreach ($entry['breakdown'] as $i => $bk): ?>
+                        <tr>
+                            <?php if ($i === 0): ?>
+                            <td rowspan="<?= $bkCount ?>"><?= htmlspecialchars($entry['date']) ?></td>
+                            <td rowspan="<?= $bkCount ?>"><span class="badge bg-dark font-monospace"><?= htmlspecialchars($entry['sub_code']) ?></span></td>
+                            <td rowspan="<?= $bkCount ?>" class="fw-600"><?= htmlspecialchars($entry['worker_name']) ?></td>
+                            <td rowspan="<?= $bkCount ?>"><?= $entry['group'] ? 'Group ' . $entry['group'] : '—' ?></td>
+                            <td rowspan="<?= $bkCount ?>"><?= number_format((int)$entry['stems_cut']) ?></td>
+                            <?php endif; ?>
+                            <td><span class="badge <?= $bk['class'] === 'A' ? 'bg-success' : 'bg-warning text-dark' ?>">Class <?= $bk['class'] ?></span></td>
+                            <td><?= htmlspecialchars($bk['spec']) ?></td>
+                            <td><?= number_format((int)$bk['tally']) ?></td>
+                            <td><?= number_format((int)$bk['adj']) ?></td>
+                            <td><?= number_format((int)$bk['should']) ?></td>
+                            <td><strong><?= number_format((int)$bk['total']) ?></strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+                <?php if (empty($byWorker)): ?>
+                    <tr><td colspan="11" class="text-center text-muted py-4">No beneficiary production data in this period.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ────────────────────────────────────────────────────
+         EFFICIENCY PERFORMANCE REPORT
+    ──────────────────────────────────────────────────────── -->
+    <?php elseif ($reportType === 'efficiency'): ?>
+
+    <?php
+    $totalCrewDays    = count($efficiencySummary);
+    $totalStemsAll    = array_sum(array_column($efficiencySummary, 'total_stems'));
+    $totalBoxesAll    = array_sum(array_column($efficiencySummary, 'total_boxes'));
+    $totalClassAAll   = array_sum(array_column($efficiencySummary, 'class_a_boxes'));
+    $totalClassBAll   = array_sum(array_column($efficiencySummary, 'class_b_boxes'));
+    ?>
+    <div class="row g-4 mb-4">
+        <div class="col-sm-3">
+            <div class="stat-card stat-green">
+                <div class="stat-icon"><i class="bi bi-calendar3"></i></div>
+                <div><div class="stat-value"><?= $totalCrewDays ?></div><div class="stat-label">Packing Days</div></div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="stat-card stat-blue">
+                <div class="stat-icon"><i class="bi bi-scissors"></i></div>
+                <div><div class="stat-value"><?= number_format($totalStemsAll) ?></div><div class="stat-label">Total Stems Cut</div></div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="stat-card stat-green">
+                <div class="stat-icon"><i class="bi bi-boxes"></i></div>
+                <div><div class="stat-value"><?= number_format($totalBoxesAll) ?></div><div class="stat-label">Total Boxes</div></div>
+            </div>
+        </div>
+        <div class="col-sm-3">
+            <div class="stat-card stat-yellow">
+                <div class="stat-icon"><i class="bi bi-bar-chart"></i></div>
+                <div><div class="stat-value"><?= $totalStemsAll ? number_format($totalBoxesAll / $totalStemsAll, 2) : '—' ?></div><div class="stat-label">Boxes / Stem</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="card-header"><i class="bi bi-speedometer2 me-2 text-success"></i>Efficiency Performance — <?= htmlspecialchars($dateFrom) ?> to <?= htmlspecialchars($dateTo) ?></div>
+        <div class="table-responsive p-2">
+            <table class="table table-hover darbco-table w-100" id="efficiencyTable">
+                <thead>
+                    <tr><th>Date</th><th>Crew Size</th><th>Stems Cut</th><th>Total Boxes</th><th>Class A Boxes</th><th>Class B Boxes</th><th>Class A %</th><th>Groups</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($efficiencySummary as $e): ?>
+                <?php $pctA = $e['total_boxes'] > 0 ? round($e['class_a_boxes'] / $e['total_boxes'] * 100) : 0; ?>
+                <tr>
+                    <td><?= date('l, M j Y', strtotime($e['harvest_date'])) ?></td>
+                    <td><?= $e['crew_size'] ?></td>
+                    <td><?= number_format((int)$e['total_stems']) ?></td>
+                    <td><strong><?= number_format((int)$e['total_boxes']) ?></strong></td>
+                    <td><span class="badge bg-success"><?= number_format((int)$e['class_a_boxes']) ?></span></td>
+                    <td><span class="badge bg-warning text-dark"><?= number_format((int)$e['class_b_boxes']) ?></span></td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height:6px;">
+                                <div class="progress-bar bg-success" style="width:<?= $pctA ?>%"></div>
+                            </div>
+                            <small><?= $pctA ?>%</small>
+                        </div>
+                    </td>
+                    <td class="text-muted small"><?= htmlspecialchars($e['groups_active'] ?? '—') ?></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($efficiencySummary)): ?>
+                    <tr><td colspan="8" class="text-center text-muted py-4">No efficiency data in this period.</td></tr>
+                <?php endif; ?>
+                </tbody>
+                <?php if (!empty($efficiencySummary)): ?>
+                <tfoot class="table-success fw-bold">
+                    <tr>
+                        <td>TOTAL</td>
+                        <td>—</td>
+                        <td><?= number_format($totalStemsAll) ?></td>
+                        <td><?= number_format($totalBoxesAll) ?></td>
+                        <td><?= number_format($totalClassAAll) ?></td>
+                        <td><?= number_format($totalClassBAll) ?></td>
+                        <td><?= $totalBoxesAll > 0 ? round($totalClassAAll / $totalBoxesAll * 100) : 0 ?>%</td>
+                        <td>—</td>
+                    </tr>
+                </tfoot>
+                <?php endif; ?>
+            </table>
+        </div>
+    </div>
 
     <?php endif; ?>
 

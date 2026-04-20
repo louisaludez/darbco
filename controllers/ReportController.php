@@ -53,13 +53,16 @@ if ($period !== 'custom' || !$dateFrom || !$dateTo) {
 }
 
 // ── Fetch data based on report type ──────────────────────────
-$reportData      = [];
-$payrollSummary  = [];
-$topWorkers      = [];
-$inventoryUsage  = [];
-$monthlyChart    = [];
-$chartLabels     = [];
-$chartValues     = [];
+$reportData        = [];
+$payrollSummary    = [];
+$topWorkers        = [];
+$inventoryUsage    = [];
+$monthlyChart      = [];
+$chartLabels       = [];
+$chartValues       = [];
+$boxesPerGroup     = [];
+$perBeneficiary    = [];
+$efficiencySummary = [];
 
 switch ($reportType) {
     case 'payroll':
@@ -69,6 +72,18 @@ switch ($reportType) {
 
     case 'inventory':
         $inventoryUsage = $reportModel->getInventoryUsage($dateFrom, $dateTo);
+        break;
+
+    case 'boxes_per_group':
+        $boxesPerGroup = $reportModel->getDailyBoxesPerGroup($dateFrom, $dateTo);
+        break;
+
+    case 'per_beneficiary':
+        $perBeneficiary = $reportModel->getDailyProductionPerBeneficiary($dateFrom, $dateTo);
+        break;
+
+    case 'efficiency':
+        $efficiencySummary = $reportModel->getEfficiencySummary($dateFrom, $dateTo);
         break;
 
     case 'production':
@@ -124,6 +139,49 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
                 $row['total_used'],
                 $row['current_stock'],
                 $row['unit']
+            ]);
+        }
+    } elseif ($reportType === 'boxes_per_group') {
+        fputcsv($output, ['Date', 'Group', 'Class', 'Spec', 'Tally', 'Adjusted', 'Should Be', 'Total Produced']);
+        foreach ($boxesPerGroup as $row) {
+            fputcsv($output, [
+                $row['harvest_date'],
+                'Group ' . ($row['group_number'] ?? 'N/A'),
+                'Class ' . $row['box_class'],
+                $row['box_spec'],
+                $row['total_tally'],
+                $row['total_adj'],
+                $row['total_should'],
+                $row['total_boxes_produced'],
+            ]);
+        }
+    } elseif ($reportType === 'per_beneficiary') {
+        fputcsv($output, ['Date', 'Sub Code', 'ARB Name', 'Stems Cut', 'Group', 'Class', 'Spec', 'Tally', 'Adjusted', 'Should Be']);
+        foreach ($perBeneficiary as $row) {
+            fputcsv($output, [
+                $row['harvest_date'],
+                $row['sub_code'],
+                $row['worker_name'],
+                $row['stems_cut'],
+                'Group ' . ($row['group_number'] ?? 'N/A'),
+                'Class ' . ($row['box_class'] ?? ''),
+                $row['box_spec']      ?? '',
+                $row['tally_count']   ?? 0,
+                $row['adjusted_count'] ?? 0,
+                $row['should_be_count'] ?? 0,
+            ]);
+        }
+    } elseif ($reportType === 'efficiency') {
+        fputcsv($output, ['Date', 'Crew Size', 'Total Stems', 'Total Boxes', 'Class A Boxes', 'Class B Boxes', 'Groups Active']);
+        foreach ($efficiencySummary as $row) {
+            fputcsv($output, [
+                $row['harvest_date'],
+                $row['crew_size'],
+                $row['total_stems'],
+                $row['total_boxes'],
+                $row['class_a_boxes'],
+                $row['class_b_boxes'],
+                $row['groups_active'],
             ]);
         }
     }
