@@ -7,8 +7,8 @@ require_once VIEW_PATH . 'layout/header.php';
     <div class="login-card">
 
         <!-- Logo -->
-        <div class="login-logo">
-            <i class="bi bi-leaf-fill"></i>
+        <div class="login-logo mb-3">
+            <img src="assets/img/favicon.png" alt="DARBCO Logo" style="width: 70px; height: 70px; object-fit: contain; border-radius: 50%;">
         </div>
 
         <h2><?= APP_NAME ?></h2>

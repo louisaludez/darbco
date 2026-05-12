@@ -2,7 +2,7 @@
 // ============================================================
 //  Controller: Production
 //  File      : controllers/ProductionController.php
-//  Handles   : CRUD for production records + materials
+//  Handles   : CRUD for production records + materials + harvest sheet
 //  Access    : production_clerk, admin
 // ============================================================
 
@@ -37,13 +37,14 @@ $error   = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
     Csrf::verify();
     try {
-        // Collect materials array from form (item_id[] qty_used[])
+        // Collect materials array from form (item_id[] qty_used[] price[])
         $materials = [];
         if (!empty($_POST['item_id'])) {
             foreach ($_POST['item_id'] as $i => $itemId) {
-                $qty = (float) ($_POST['quantity_used'][$i] ?? 0);
+                $qty   = (float) ($_POST['quantity_used'][$i] ?? 0);
+                $price = (float) ($_POST['price'][$i] ?? 0);
                 if ($itemId && $qty > 0) {
-                    $materials[] = ['item_id' => (int) $itemId, 'quantity_used' => $qty];
+                    $materials[] = ['item_id' => (int) $itemId, 'quantity_used' => $qty, 'price' => $price];
                 }
             }
         }
@@ -62,18 +63,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
             }
         }
 
+        // Collect per-row stem details (rows 11, 12, 13, 14)
+        $stemDetails = [];
+        foreach ([11, 12, 13, 14] as $rowNum) {
+            $count = (int) ($_POST["stem_row_{$rowNum}"] ?? 0);
+            if ($count > 0) {
+                $stemDetails[] = ['row_number' => $rowNum, 'stem_count' => $count];
+            }
+        }
+
         $data = [
             'harvest_date'   => $_POST['harvest_date'],
             'worker_id'      => (int) $_POST['worker_id'],
             'boxes_produced' => (int) $_POST['boxes_produced'],
             'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
             'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
+            'block_number'   => trim($_POST['block_number'] ?? ''),
+            'carrier_name'   => trim($_POST['carrier_name'] ?? ''),
+            'arrival_time'   => $_POST['arrival_time'] ?? null,
+            'first_box_out'  => $_POST['first_box_out'] ?? null,
+            'last_box_out'   => $_POST['last_box_out'] ?? null,
+            'week_number'    => trim($_POST['week_number'] ?? ''),
+            'cycle_code'     => trim($_POST['cycle_code'] ?? ''),
             'field_location' => trim($_POST['field_location'] ?? ''),
             'notes'          => trim($_POST['notes'] ?? ''),
             'recorded_by'    => (int) $_SESSION[SESS_USER_ID],
         ];
 
-        $newId = $productionModel->create($data, $materials, $boxBreakdown);
+        $newId = $productionModel->create($data, $materials, $boxBreakdown, $stemDetails);
         $logger->log(
             (int) $_SESSION[SESS_USER_ID],
             'production_insert',
@@ -99,16 +116,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
             'boxes_produced' => (int) $_POST['boxes_produced'],
             'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
             'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
+            'block_number'   => trim($_POST['block_number'] ?? ''),
+            'carrier_name'   => trim($_POST['carrier_name'] ?? ''),
+            'arrival_time'   => $_POST['arrival_time'] ?? null,
+            'first_box_out'  => $_POST['first_box_out'] ?? null,
+            'last_box_out'   => $_POST['last_box_out'] ?? null,
+            'week_number'    => trim($_POST['week_number'] ?? ''),
+            'cycle_code'     => trim($_POST['cycle_code'] ?? ''),
             'field_location' => trim($_POST['field_location'] ?? ''),
-            'notes'          => trim($_POST['notes'] ?? '')
+            'notes'          => trim($_POST['notes'] ?? ''),
         ];
         $productionModel->update($prodId, $data);
 
         $logger->log(
             (int) $_SESSION[SESS_USER_ID],
-            'edit_production',
+            'production_update',
             "Updated production record #{$prodId}.",
-            'production',
+            'production_data',
             $prodId
         );
         $message = 'Production record updated successfully.';
@@ -126,9 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete' && $role === R
 
         $logger->log(
             (int) $_SESSION[SESS_USER_ID],
-            'delete_production',
+            'production_delete',
             "Deleted production record #{$prodId}. Associated materials restored to inventory.",
-            'production',
+            'production_data',
             $prodId
         );
         $message = 'Production record deleted successfully. Inventory restored.';

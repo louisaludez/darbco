@@ -12,7 +12,7 @@ $role = $_SESSION[SESS_ROLE];
         <h1><i class="bi bi-cash-stack me-2 text-success"></i>Payroll Management</h1>
         <?php if (in_array($role, [ROLE_PAYROLL, ROLE_ADMIN], true)): ?>
         <button class="btn btn-darbco" data-bs-toggle="modal" data-bs-target="#computePayrollModal" id="computePayrollBtn">
-            <i class="bi bi-calculator me-2"></i>Compute Payroll
+            <i class="bi bi-calculator me-2"></i>Compute Harvest Proceeds
         </button>
         <?php endif; ?>
     </div>
@@ -30,9 +30,8 @@ $role = $_SESSION[SESS_ROLE];
             <table class="table table-hover darbco-table w-100" id="payrollTable">
                 <thead>
                     <tr>
-                        <th>#</th><th>Worker</th><th>Date</th><th>Boxes</th>
-                        <th>Rate/Box</th><th>Gross</th><th>Deductions</th>
-                        <th>Net Pay</th><th>Status</th><th>Actions</th>
+                        <th>#</th><th>Worker</th><th>Date</th><th>Week</th><th>Boxes</th>
+                        <th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -41,8 +40,8 @@ $role = $_SESSION[SESS_ROLE];
                     <td><?= $p['payroll_id'] ?></td>
                     <td><?= htmlspecialchars($p['worker_name']) ?></td>
                     <td><?= $p['harvest_date'] ?></td>
+                    <td><?= htmlspecialchars($p['week_number'] ?? '—') ?></td>
                     <td><?= number_format($p['boxes_produced']) ?></td>
-                    <td>₱<?= number_format($p['rate_per_box'], 2) ?></td>
                     <td>₱<?= number_format($p['gross_pay'], 2) ?></td>
                     <td>₱<?= number_format($p['deductions'], 2) ?></td>
                     <td><strong>₱<?= number_format($p['net_pay'], 2) ?></strong></td>
@@ -59,10 +58,8 @@ $role = $_SESSION[SESS_ROLE];
                     </td>
                     <td>
                         <?php if ($p['status'] === 'pending_review' && in_array($role, [ROLE_FINANCE, ROLE_ADMIN], true)): ?>
-                        <button class="btn btn-sm btn-outline-info review-btn"
-                                data-bs-toggle="modal" data-bs-target="#reviewModal"
-                                data-id="<?= $p['payroll_id'] ?>"
-                                data-worker="<?= htmlspecialchars($p['worker_name']) ?>"
+                        <button class="btn btn-sm btn-outline-info review-btn" data-bs-toggle="modal" data-bs-target="#reviewModal"
+                                data-id="<?= $p['payroll_id'] ?>" data-worker="<?= htmlspecialchars($p['worker_name']) ?>"
                                 data-net="<?= number_format($p['net_pay'], 2) ?>">
                             <i class="bi bi-clipboard-check"></i> Review
                         </button>
@@ -71,9 +68,7 @@ $role = $_SESSION[SESS_ROLE];
                         <form method="POST" action="index.php?page=payroll&action=approve" class="d-inline">
                             <?= Csrf::field() ?>
                             <input type="hidden" name="payroll_id" value="<?= $p['payroll_id'] ?>">
-                            <button type="submit" class="btn btn-sm btn-darbco">
-                                <i class="bi bi-check-circle"></i> Approve
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-darbco"><i class="bi bi-check-circle"></i> Approve</button>
                         </form>
                         <?php endif; ?>
                         <?php if ($p['status'] === 'approved'): ?>
@@ -89,67 +84,116 @@ $role = $_SESSION[SESS_ROLE];
         </div>
     </div>
 
-    <!-- Compute Payroll Modal -->
+    <!-- Compute Payroll Modal (Full Harvest Proceeds) -->
     <?php if (in_array($role, [ROLE_PAYROLL, ROLE_ADMIN], true)): ?>
     <div class="modal fade" id="computePayrollModal" tabindex="-1" aria-labelledby="computePayrollLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <form method="POST" action="index.php?page=payroll&action=compute">
                     <?= Csrf::field() ?>
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="computePayrollLabel">
-                            <i class="bi bi-calculator me-2"></i>Compute Payroll
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="computePayrollLabel"><i class="bi bi-calculator me-2"></i>DARBCO IFS — Harvest Proceeds</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Production Record <span class="text-danger">*</span></label>
-                                <select name="production_id" id="production_id" class="form-select" required>
-                                    <option value="">-- Select Production Record --</option>
-                                    <?php foreach ($productionList as $prod): ?>
-                                    <option value="<?= $prod['production_id'] ?>">
-                                        #<?= $prod['production_id'] ?> — <?= htmlspecialchars($prod['worker_name']) ?>
-                                        (<?= $prod['harvest_date'] ?>, <?= number_format($prod['boxes_produced']) ?> boxes)
-                                    </option>
+                    <div class="modal-body" style="max-height:75vh; overflow-y:auto;">
+                        <!-- Header Info -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Worker / ARB <span class="text-danger">*</span></label>
+                                <select name="worker_id" class="form-select" required>
+                                    <option value="">-- Select --</option>
+                                    <?php foreach ($activeWorkers as $w): ?>
+                                    <option value="<?= $w['worker_id'] ?>"><?= htmlspecialchars(($w['sub_code'] ? '[' . $w['sub_code'] . '] ' : '') . $w['first_name'] . ' ' . $w['last_name']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Rate per Box (₱)</label>
-                                <input type="number" name="rate_per_box" id="rate_per_box" class="form-control"
-                                       value="<?= DEFAULT_RATE_PER_BOX ?>" step="0.01" min="0" id="gross_pay_preview">
+                            <div class="col-md-2"><label class="form-label fw-semibold">Area</label><input type="text" name="area" class="form-control" placeholder="Farm area"></div>
+                            <div class="col-md-2"><label class="form-label fw-semibold">Harvest Date <span class="text-danger">*</span></label><input type="date" name="harvest_date" class="form-control" required value="<?= date('Y-m-d') ?>"></div>
+                            <div class="col-md-1"><label class="form-label fw-semibold">Week</label><input type="text" name="week_number" class="form-control" placeholder="7"></div>
+                            <div class="col-md-2"><label class="form-label fw-semibold">Cycle</label><input type="text" name="cycle_code" class="form-control" placeholder="R2-2 C28"></div>
+                            <div class="col-md-2"><label class="form-label fw-semibold">Forex Rate</label><input type="number" name="forex_rate" class="form-control" step="0.0001" value="1.00"></div>
+                        </div>
+
+                        <!-- Box Spec Pricing -->
+                        <div class="card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                <span class="fw-bold"><i class="bi bi-box-seam me-1"></i>Box Specs & Pricing</span>
+                                <button type="button" class="btn btn-sm btn-outline-success" id="addBoxSpecRow"><i class="bi bi-plus"></i> Add Spec</button>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Deductions (₱)</label>
-                                <input type="number" name="deductions" id="deductions" class="form-control"
-                                       value="0" step="0.01" min="0">
+                            <div class="card-body p-2">
+                                <table class="table table-sm table-bordered mb-0" id="boxSpecTable">
+                                    <thead class="table-light"><tr><th>Box Spec</th><th style="width:80px">Qty</th><th style="width:100px">Price (₱)</th><th style="width:100px">Forex</th><th style="width:110px">Amount</th><th style="width:40px"></th></tr></thead>
+                                    <tbody id="boxSpecRows"></tbody>
+                                    <tfoot><tr><td colspan="4" class="text-end fw-bold">Total Gross Proceeds:</td><td class="fw-bold" id="grossTotal">₱ 0.00</td><td></td></tr></tfoot>
+                                </table>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Period Start</label>
-                                <input type="date" name="period_start" id="period_start" class="form-control" required value="<?= date('Y-m-01') ?>">
+                        </div>
+
+                        <!-- Production Data -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3"><label class="form-label fw-semibold">Total Boxes</label><input type="number" name="boxes_produced" class="form-control" min="0" value="0"></div>
+                            <div class="col-md-3"><label class="form-label fw-semibold">Stems Cut</label><input type="number" name="stems_cut" class="form-control" min="0" value="0"></div>
+                            <div class="col-md-3"><label class="form-label fw-semibold">Rate/Box (₱)</label><input type="number" name="rate_per_box" class="form-control" step="0.01" value="<?= DEFAULT_RATE_PER_BOX ?>"></div>
+                            <div class="col-md-3"><label class="form-label fw-semibold">Prod. Record</label>
+                                <select name="production_id" class="form-select">
+                                    <option value="">-- Optional link --</option>
+                                    <?php foreach ($productionList as $prod): ?>
+                                    <option value="<?= $prod['production_id'] ?>">#<?= $prod['production_id'] ?> — <?= htmlspecialchars($prod['worker_name']) ?> (<?= $prod['harvest_date'] ?>)</option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Period End</label>
-                                <input type="date" name="period_end" id="period_end" class="form-control" required value="<?= date('Y-m-t') ?>">
+                        </div>
+
+                        <!-- Itemized Deductions -->
+                        <div class="card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                <span class="fw-bold text-danger"><i class="bi bi-dash-circle me-1"></i>Deductions</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="addDeductionRow"><i class="bi bi-plus"></i> Add</button>
                             </div>
-                            <div class="col-12">
-                                <div class="alert alert-info mb-0 py-2">
-                                    <small>Est. Net Pay: <strong id="net_pay_preview">₱ 0.00</strong></small>
-                                </div>
+                            <div class="card-body p-2">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light"><tr><th>Category</th><th>Description</th><th style="width:80px">Qty</th><th style="width:100px">Unit Cost</th><th style="width:110px">Amount (₱)</th><th style="width:40px"></th></tr></thead>
+                                    <tbody id="deductionRows"></tbody>
+                                    <tfoot><tr><td colspan="4" class="text-end fw-bold text-danger">Total Deductions:</td><td class="fw-bold text-danger" id="dedTotal">₱ 0.00</td><td></td></tr></tfoot>
+                                </table>
                             </div>
+                        </div>
+
+                        <!-- Contributions -->
+                        <div class="card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                <span class="fw-bold text-info"><i class="bi bi-piggy-bank me-1"></i>Contributions</span>
+                                <button type="button" class="btn btn-sm btn-outline-info" id="addContribRow"><i class="bi bi-plus"></i> Add</button>
+                            </div>
+                            <div class="card-body p-2">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-light"><tr><th>Type</th><th style="width:120px">Previous (₱)</th><th style="width:120px">Current (₱)</th><th style="width:40px"></th></tr></thead>
+                                    <tbody id="contribRows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Other fields -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4"><label class="form-label fw-semibold">Guaranteed Income (₱)</label><input type="number" name="guaranteed_income" class="form-control" step="0.01" value="0"></div>
+                            <div class="col-md-4"><label class="form-label fw-semibold">Period Start</label><input type="date" name="period_start" class="form-control" required value="<?= date('Y-m-01') ?>"></div>
+                            <div class="col-md-4"><label class="form-label fw-semibold">Period End</label><input type="date" name="period_end" class="form-control" required value="<?= date('Y-m-t') ?>"></div>
+                        </div>
+
+                        <div class="alert alert-success py-3 text-center mb-0">
+                            <span class="fs-5 fw-bold">Estimated Take-Home Pay: <span id="netPayPreview">₱ 0.00</span></span>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-darbco" id="computeBtn"><i class="bi bi-calculator me-2"></i>Compute</button>
+                        <button type="submit" class="btn btn-darbco" id="computeBtn"><i class="bi bi-calculator me-2"></i>Compute & Save</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
     <?php endif; ?>
+
     <!-- Review Modal -->
     <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-sm">
@@ -157,15 +201,11 @@ $role = $_SESSION[SESS_ROLE];
                 <form method="POST" action="index.php?page=payroll&action=review">
                     <?= Csrf::field() ?>
                     <input type="hidden" name="payroll_id" id="review_payroll_id">
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Review Payroll</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
+                    <div class="modal-header"><h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Review Payroll</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
                         <p class="mb-2"><strong>Worker:</strong> <span id="review_worker_name"></span></p>
                         <p class="mb-3"><strong>Net Pay:</strong> <span id="review_net_pay" class="text-success fw-bold"></span></p>
-                        
-                        <label class="form-label fw-semibold">Remarks / Comments</label>
+                        <label class="form-label fw-semibold">Remarks</label>
                         <textarea name="remarks" class="form-control" rows="3" placeholder="Optional notes..."></textarea>
                     </div>
                     <div class="modal-footer">
@@ -180,15 +220,80 @@ $role = $_SESSION[SESS_ROLE];
 </main>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.review-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const b = e.currentTarget;
-            document.getElementById('review_payroll_id').value = b.dataset.id;
-            document.getElementById('review_worker_name').textContent = b.dataset.worker;
-            document.getElementById('review_net_pay').textContent = '₱' + b.dataset.net;
+const BOX_SPECS = ['456H','CB HP','CS FD','4.7K','7.2K','BCP','SH','F.P','CL-B','Sm1 H','Clusters'];
+const DED_CATEGORIES = [
+    {v:'material',l:'Material'},{v:'labor',l:'Direct Labor'},{v:'personal',l:'Personal Account'},
+    {v:'cash_advance',l:'Cash Advance'},{v:'contribution',l:'Contribution'},{v:'other',l:'Other'}
+];
+const CONTRIB_PRESETS = ['Dale Capital Share','CEFUAPCO CBU','Blocking Credit(Fertilizer)','Bio-Organic/Credit','SSS Mandatory(Materia)'];
+
+function catOptions(){return DED_CATEGORIES.map(c=>`<option value="${c.v}">${c.l}</option>`).join('');}
+function specOptions(){return BOX_SPECS.map(s=>`<option value="${s}">${s}</option>`).join('');}
+function contribOptions(){return CONTRIB_PRESETS.map(s=>`<option value="${s}">${s}</option>`).join('');}
+
+function recalc(){
+    let gross=0;
+    document.querySelectorAll('#boxSpecRows tr').forEach(r=>{
+        const q=+(r.querySelector('[name="bd_qty[]"]')?.value||0);
+        const p=+(r.querySelector('[name="bd_price[]"]')?.value||0);
+        const f=+(r.querySelector('[name="bd_forex[]"]')?.value||1);
+        const a=q*p*f;
+        const af=r.querySelector('.bd-amt');if(af)af.textContent='₱ '+a.toFixed(2);
+        gross+=a;
+    });
+    document.getElementById('grossTotal').textContent='₱ '+gross.toFixed(2);
+    let ded=0;
+    document.querySelectorAll('#deductionRows tr').forEach(r=>{
+        ded+=+(r.querySelector('[name="ded_amt[]"]')?.value||0);
+    });
+    document.getElementById('dedTotal').textContent='₱ '+ded.toFixed(2);
+    const gi=+(document.querySelector('[name="guaranteed_income"]')?.value||0);
+    document.getElementById('netPayPreview').textContent='₱ '+Math.max(0,gross-ded+gi).toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    // Box spec rows
+    document.getElementById('addBoxSpecRow')?.addEventListener('click',()=>{
+        document.getElementById('boxSpecRows').insertAdjacentHTML('beforeend',`<tr>
+            <td><select name="bd_spec[]" class="form-select form-select-sm"><option value="">--</option>${specOptions()}</select></td>
+            <td><input type="number" name="bd_qty[]" class="form-control form-control-sm" min="0" value="0" oninput="recalc()"></td>
+            <td><input type="number" name="bd_price[]" class="form-control form-control-sm" step="0.01" min="0" value="0" oninput="recalc()"></td>
+            <td><input type="number" name="bd_forex[]" class="form-control form-control-sm" step="0.0001" value="1.00" oninput="recalc()"></td>
+            <td class="bd-amt fw-semibold">₱ 0.00</td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();recalc()"><i class="bi bi-x"></i></button></td>
+        </tr>`);
+    });
+    // Deduction rows
+    document.getElementById('addDeductionRow')?.addEventListener('click',()=>{
+        document.getElementById('deductionRows').insertAdjacentHTML('beforeend',`<tr>
+            <td><select name="ded_cat[]" class="form-select form-select-sm">${catOptions()}</select></td>
+            <td><input type="text" name="ded_desc[]" class="form-control form-control-sm" placeholder="Description"></td>
+            <td><input type="number" name="ded_qty[]" class="form-control form-control-sm" step="0.01" min="0"></td>
+            <td><input type="number" name="ded_ucost[]" class="form-control form-control-sm" step="0.01" min="0"></td>
+            <td><input type="number" name="ded_amt[]" class="form-control form-control-sm" step="0.01" min="0" value="0" oninput="recalc()"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();recalc()"><i class="bi bi-x"></i></button></td>
+        </tr>`);
+    });
+    // Contribution rows
+    document.getElementById('addContribRow')?.addEventListener('click',()=>{
+        document.getElementById('contribRows').insertAdjacentHTML('beforeend',`<tr>
+            <td><select name="contrib_type[]" class="form-select form-select-sm"><option value="">--</option>${contribOptions()}</select></td>
+            <td><input type="number" name="contrib_prev[]" class="form-control form-control-sm" step="0.01" value="0"></td>
+            <td><input type="number" name="contrib_curr[]" class="form-control form-control-sm" step="0.01" value="0"></td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x"></i></button></td>
+        </tr>`);
+    });
+    // Review modal
+    document.querySelectorAll('.review-btn').forEach(btn=>{
+        btn.addEventListener('click',e=>{
+            const b=e.currentTarget;
+            document.getElementById('review_payroll_id').value=b.dataset.id;
+            document.getElementById('review_worker_name').textContent=b.dataset.worker;
+            document.getElementById('review_net_pay').textContent='₱'+b.dataset.net;
         });
     });
+    // Listen for guaranteed_income changes
+    document.querySelector('[name="guaranteed_income"]')?.addEventListener('input',recalc);
 });
 </script>
 <?php require_once VIEW_PATH . 'layout/footer.php'; ?>

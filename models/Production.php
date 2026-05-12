@@ -2,7 +2,7 @@
 // ============================================================
 //  Model: Production
 //  File : models/Production.php
-//  Handles: Daily harvest records, materials used
+//  Handles: Daily harvest records, materials used, stem details
 // ============================================================
 
 declare(strict_types=1);
@@ -51,22 +51,28 @@ class Production
     }
 
     /**
-     * Insert a production record plus its materials list.
+     * Insert a production record plus its materials list and stem details.
      * Wraps in a transaction — inventory deduction is handled
      * by the trg_deduct_inventory MySQL trigger automatically.
      *
      * @param array $data       Production fields
      * @param array $materials  [['item_id'=>X,'qty'=>Y], ...]
+     * @param array $boxBreakdown  Box class/spec breakdown rows
+     * @param array $stemDetails   Per-row stem counts [['row_number'=>11,'stem_count'=>5], ...]
      */
-    public function create(array $data, array $materials, array $boxBreakdown = []): int
+    public function create(array $data, array $materials, array $boxBreakdown = [], array $stemDetails = []): int
     {
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO production_data
-                    (harvest_date, worker_id, boxes_produced, stems_cut, group_number, field_location, notes, recorded_by)
+                    (harvest_date, worker_id, boxes_produced, stems_cut, group_number,
+                     block_number, carrier_name, arrival_time, first_box_out, last_box_out,
+                     week_number, cycle_code, field_location, notes, recorded_by)
                  VALUES
-                    (:harvest_date, :worker_id, :boxes_produced, :stems_cut, :group_number, :field_location, :notes, :recorded_by)'
+                    (:harvest_date, :worker_id, :boxes_produced, :stems_cut, :group_number,
+                     :block_number, :carrier_name, :arrival_time, :first_box_out, :last_box_out,
+                     :week_number, :cycle_code, :field_location, :notes, :recorded_by)'
             );
             $stmt->execute([
                 ':harvest_date'   => $data['harvest_date'],
@@ -74,6 +80,13 @@ class Production
                 ':boxes_produced' => (int) $data['boxes_produced'],
                 ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
                 ':group_number'   => !empty($data['group_number']) ? (int) $data['group_number'] : null,
+                ':block_number'   => $data['block_number']   ?? null,
+                ':carrier_name'   => $data['carrier_name']   ?? null,
+                ':arrival_time'   => !empty($data['arrival_time'])   ? $data['arrival_time']   : null,
+                ':first_box_out'  => !empty($data['first_box_out'])  ? $data['first_box_out']  : null,
+                ':last_box_out'   => !empty($data['last_box_out'])   ? $data['last_box_out']   : null,
+                ':week_number'    => $data['week_number']    ?? null,
+                ':cycle_code'     => $data['cycle_code']     ?? null,
                 ':field_location' => $data['field_location'] ?? null,
                 ':notes'          => $data['notes']          ?? null,
                 ':recorded_by'    => (int) $data['recorded_by'],
@@ -82,14 +95,15 @@ class Production
 
             // Insert materials — trigger fires per row
             $matStmt = $this->db->prepare(
-                'INSERT INTO production_materials (production_id, item_id, quantity_used)
-                 VALUES (:pid, :iid, :qty)'
+                'INSERT INTO production_materials (production_id, item_id, quantity_used, unit_price)
+                 VALUES (:pid, :iid, :qty, :price)'
             );
             foreach ($materials as $mat) {
                 $matStmt->execute([
-                    ':pid' => $productionId,
-                    ':iid' => (int)   $mat['item_id'],
-                    ':qty' => (float) $mat['quantity_used'],
+                    ':pid'   => $productionId,
+                    ':iid'   => (int)   $mat['item_id'],
+                    ':qty'   => (float) $mat['quantity_used'],
+                    ':price' => (float) ($mat['price'] ?? 0),
                 ]);
             }
 
@@ -112,6 +126,23 @@ class Production
                             ':tally'  => $tally,
                             ':adj'    => $adj,
                             ':should' => $should,
+                        ]);
+                    }
+                }
+            }
+
+            // Insert per-row stem details (rows 11, 12, 13, 14 from harvest sheet)
+            if (!empty($stemDetails)) {
+                $sdStmt = $this->db->prepare(
+                    'INSERT INTO production_stem_details (production_id, row_number, stem_count)
+                     VALUES (:pid, :rn, :sc)'
+                );
+                foreach ($stemDetails as $sd) {
+                    if (!empty($sd['stem_count'])) {
+                        $sdStmt->execute([
+                            ':pid' => $productionId,
+                            ':rn'  => (int) $sd['row_number'],
+                            ':sc'  => (int) $sd['stem_count'],
                         ]);
                     }
                 }
@@ -153,9 +184,6 @@ class Production
     }
 
     /**
-     * Get materials used for a specific production record.
-     */
-    /**
      * Update core harvest fields (does NOT touch materials/inventory).
      */
     public function update(int $id, array $data): bool
@@ -167,6 +195,13 @@ class Production
                     boxes_produced = :boxes_produced,
                     stems_cut      = :stems_cut,
                     group_number   = :group_number,
+                    block_number   = :block_number,
+                    carrier_name   = :carrier_name,
+                    arrival_time   = :arrival_time,
+                    first_box_out  = :first_box_out,
+                    last_box_out   = :last_box_out,
+                    week_number    = :week_number,
+                    cycle_code     = :cycle_code,
                     field_location = :field_location,
                     notes          = :notes
               WHERE production_id  = :id'
@@ -177,6 +212,13 @@ class Production
             ':boxes_produced' => (int) $data['boxes_produced'],
             ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
             ':group_number'   => !empty($data['group_number']) ? (int) $data['group_number'] : null,
+            ':block_number'   => $data['block_number']   ?? null,
+            ':carrier_name'   => $data['carrier_name']   ?? null,
+            ':arrival_time'   => !empty($data['arrival_time'])   ? $data['arrival_time']   : null,
+            ':first_box_out'  => !empty($data['first_box_out'])  ? $data['first_box_out']  : null,
+            ':last_box_out'   => !empty($data['last_box_out'])   ? $data['last_box_out']   : null,
+            ':week_number'    => $data['week_number']    ?? null,
+            ':cycle_code'     => $data['cycle_code']     ?? null,
             ':field_location' => $data['field_location'] ?? null,
             ':notes'          => $data['notes']          ?? null,
             ':id'             => $id,
@@ -196,6 +238,9 @@ class Production
         return $stmt->execute([':id' => $id]);
     }
 
+    /**
+     * Get materials used for a specific production record.
+     */
     public function getMaterials(int $productionId): array
     {
         $stmt = $this->db->prepare(
@@ -223,13 +268,28 @@ class Production
     }
 
     /**
+     * Get per-row stem details for a production record.
+     */
+    public function getStemDetails(int $productionId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM production_stem_details
+              WHERE production_id = :pid
+              ORDER BY row_number ASC'
+        );
+        $stmt->execute([':pid' => $productionId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Get all production records with box breakdowns for a date (for reports).
      */
     public function getDailyBreakdownByDate(string $date): array
     {
         $stmt = $this->db->prepare(
             'SELECT p.production_id, p.harvest_date, p.stems_cut, p.group_number,
-                    p.boxes_produced,
+                    p.boxes_produced, p.block_number, p.carrier_name, p.arrival_time,
+                    p.first_box_out, p.last_box_out, p.week_number, p.cycle_code,
                     COALESCE(w.sub_code, \'—\') AS sub_code,
                     CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name,
                     b.box_class, b.box_spec, b.tally_count, b.adjusted_count, b.should_be_count
@@ -241,5 +301,19 @@ class Production
         );
         $stmt->execute([':date' => $date]);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Calculate running total harvest for a worker up to a given date.
+     */
+    public function getRunningTotal(int $workerId, string $upToDate): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COALESCE(SUM(stems_cut), 0)
+               FROM production_data
+              WHERE worker_id = :wid AND harvest_date <= :dt'
+        );
+        $stmt->execute([':wid' => $workerId, ':dt' => $upToDate]);
+        return (int) $stmt->fetchColumn();
     }
 }

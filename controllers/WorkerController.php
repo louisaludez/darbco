@@ -28,9 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($action === 'store') {
             $data = [
+                'sub_code'       => trim($_POST['sub_code'] ?? ''),
                 'first_name'     => trim($_POST['first_name']),
                 'last_name'      => trim($_POST['last_name']),
                 'contact_number' => trim($_POST['contact_number'] ?? ''),
+                'area'           => trim($_POST['area'] ?? ''),
                 'is_active'      => 1
             ];
             $newId = $workerModel->create($data);
@@ -40,9 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'update') {
             $id = (int) $_POST['worker_id'];
             $data = [
+                'sub_code'       => trim($_POST['sub_code'] ?? ''),
                 'first_name'     => trim($_POST['first_name']),
                 'last_name'      => trim($_POST['last_name']),
                 'contact_number' => trim($_POST['contact_number'] ?? ''),
+                'area'           => trim($_POST['area'] ?? ''),
                 'is_active'      => isset($_POST['is_active']) ? 1 : 0
             ];
             $workerModel->update($id, $data);

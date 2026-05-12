@@ -33,6 +33,7 @@ $role = $_SESSION[SESS_ROLE];
                         <th>Sub Code</th>
                         <th>First Name</th>
                         <th>Last Name</th>
+                        <th>Area</th>
                         <th>Contact</th>
                         <th>Status</th>
                         <?php if ($role === ROLE_ADMIN): ?>
@@ -46,6 +47,7 @@ $role = $_SESSION[SESS_ROLE];
                         <td><span class="badge bg-dark font-monospace"><?= htmlspecialchars($w['sub_code'] ?? '—') ?></span></td>
                         <td class="fw-600"><?= htmlspecialchars($w['first_name']) ?></td>
                         <td class="fw-600"><?= htmlspecialchars($w['last_name']) ?></td>
+                        <td><?= htmlspecialchars($w['area'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($w['contact_number'] ?? '—') ?></td>
                         <td>
                             <?php if ($w['is_active']): ?>
@@ -62,6 +64,7 @@ $role = $_SESSION[SESS_ROLE];
                                     data-sub="<?= htmlspecialchars($w['sub_code'] ?? '') ?>"
                                     data-first="<?= htmlspecialchars($w['first_name']) ?>"
                                     data-last="<?= htmlspecialchars($w['last_name']) ?>"
+                                    data-area="<?= htmlspecialchars($w['area'] ?? '') ?>"
                                     data-contact="<?= htmlspecialchars($w['contact_number']) ?>"
                                     data-active="<?= $w['is_active'] ?>">
                                 <i class="bi bi-pencil"></i>
@@ -112,6 +115,10 @@ $role = $_SESSION[SESS_ROLE];
                                 <label class="form-label fw-semibold">Contact Number</label>
                                 <input type="text" name="contact_number" class="form-control" placeholder="e.g. 09123456789">
                             </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Area / Farm Location</label>
+                                <input type="text" name="area" class="form-control" placeholder="e.g. Farm 2, Block A">
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -154,6 +161,10 @@ $role = $_SESSION[SESS_ROLE];
                                 <input type="text" name="contact_number" id="edit_worker_contact" class="form-control">
                             </div>
                             <div class="col-12">
+                                <label class="form-label fw-semibold">Area / Farm Location</label>
+                                <input type="text" name="area" id="edit_worker_area" class="form-control" placeholder="e.g. Farm 2">
+                            </div>
+                            <div class="col-12">
                                 <div class="form-check form-switch mt-2">
                                     <input class="form-check-input" type="checkbox" role="switch" name="is_active" id="edit_worker_active" value="1">
                                     <label class="form-check-label fw-semibold" for="edit_worker_active">Active Worker (Can be assigned to new productions)</label>
@@ -179,6 +190,7 @@ $role = $_SESSION[SESS_ROLE];
                 document.getElementById('edit_worker_sub').value     = b.dataset.sub;
                 document.getElementById('edit_worker_first').value   = b.dataset.first;
                 document.getElementById('edit_worker_last').value    = b.dataset.last;
+                document.getElementById('edit_worker_area').value    = b.dataset.area || '';
                 document.getElementById('edit_worker_contact').value = b.dataset.contact;
                 document.getElementById('edit_worker_active').checked = b.dataset.active == '1';
             });

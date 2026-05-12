@@ -27,15 +27,16 @@ class Worker
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO workers (sub_code, first_name, last_name, contact_number, is_active)
-             VALUES (:sc, :f, :l, :c, :a)'
+            'INSERT INTO workers (sub_code, first_name, last_name, contact_number, area, is_active)
+             VALUES (:sc, :f, :l, :c, :area, :a)'
         );
         $stmt->execute([
-            ':sc' => $data['sub_code']       ?? null,
-            ':f'  => $data['first_name'],
-            ':l'  => $data['last_name'],
-            ':c'  => $data['contact_number'] ?? null,
-            ':a'  => $data['is_active']      ?? 1
+            ':sc'   => $data['sub_code']       ?? null,
+            ':f'    => $data['first_name'],
+            ':l'    => $data['last_name'],
+            ':c'    => $data['contact_number'] ?? null,
+            ':area' => $data['area']            ?? null,
+            ':a'    => $data['is_active']      ?? 1
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -48,16 +49,18 @@ class Worker
                     first_name     = :f,
                     last_name      = :l,
                     contact_number = :c,
+                    area           = :area,
                     is_active      = :a
               WHERE worker_id      = :id'
         );
         return $stmt->execute([
-            ':sc' => $data['sub_code']       ?? null,
-            ':f'  => $data['first_name'],
-            ':l'  => $data['last_name'],
-            ':c'  => $data['contact_number'] ?? null,
-            ':a'  => $data['is_active']      ?? 1,
-            ':id' => $id
+            ':sc'   => $data['sub_code']       ?? null,
+            ':f'    => $data['first_name'],
+            ':l'    => $data['last_name'],
+            ':c'    => $data['contact_number'] ?? null,
+            ':area' => $data['area']            ?? null,
+            ':a'    => $data['is_active']      ?? 1,
+            ':id'   => $id
         ]);
     }
 

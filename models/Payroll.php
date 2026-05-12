@@ -2,7 +2,8 @@
 // ============================================================
 //  Model: Payroll
 //  File : models/Payroll.php
-//  Handles: Payroll computation, approval workflow
+//  Handles: Payroll computation with full itemized deductions,
+//           box-spec pricing, contributions, approval workflow
 // ============================================================
 
 declare(strict_types=1);
@@ -26,7 +27,8 @@ class Payroll
                     c.full_name AS computed_by_name,
                     r.full_name AS reviewed_by_name,
                     a.full_name AS approved_by_name,
-                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name
+                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name,
+                    w.sub_code, w.area AS worker_area
                FROM payroll_data p
                JOIN users c ON c.user_id = p.computed_by
           LEFT JOIN users r ON r.user_id = p.reviewed_by
@@ -47,7 +49,8 @@ class Payroll
                     c.full_name AS computed_by_name,
                     r.full_name AS reviewed_by_name,
                     a.full_name AS approved_by_name,
-                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name
+                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name,
+                    w.sub_code, w.area AS worker_area
                FROM payroll_data p
                JOIN users c ON c.user_id = p.computed_by
           LEFT JOIN users r ON r.user_id = p.reviewed_by
@@ -78,12 +81,178 @@ class Payroll
 
     /**
      * Compute and insert payroll from a production record.
+     * Now supports full itemized deductions, box-spec pricing,
+     * and contributions as per DARBCO Harvest Proceeds form.
      *
-     * @param int   $productionId
-     * @param float $ratePerBox
-     * @param float $deductions
-     * @param int   $computedBy    user_id of Payroll Personnel
-     * @param array $period        ['start'=>'YYYY-MM-DD','end'=>'YYYY-MM-DD']
+     * @param array $data  All payroll form data
+     * @param int   $computedBy  user_id of Payroll Personnel
+     */
+    public function computeFull(array $data, int $computedBy): int
+    {
+        $this->db->beginTransaction();
+        try {
+            // Calculate totals from deduction items
+            $totalMaterial     = 0;
+            $totalLabor        = 0;
+            $totalPersonal     = 0;
+            $totalCashAdvance  = 0;
+            $totalContribution = 0;
+            $totalOther        = 0;
+
+            if (!empty($data['deductions'])) {
+                foreach ($data['deductions'] as $ded) {
+                    $amt = (float) ($ded['amount'] ?? 0);
+                    switch ($ded['category'] ?? 'other') {
+                        case 'material':     $totalMaterial     += $amt; break;
+                        case 'labor':        $totalLabor        += $amt; break;
+                        case 'personal':     $totalPersonal     += $amt; break;
+                        case 'cash_advance': $totalCashAdvance  += $amt; break;
+                        case 'contribution': $totalContribution += $amt; break;
+                        default:             $totalOther        += $amt; break;
+                    }
+                }
+            }
+
+            // Calculate gross from box details or flat rate
+            $grossPay = 0;
+            if (!empty($data['box_details'])) {
+                foreach ($data['box_details'] as $bd) {
+                    $grossPay += (float) ($bd['amount'] ?? 0);
+                }
+            } else {
+                $grossPay = (int) ($data['boxes_produced'] ?? 0) * (float) ($data['rate_per_box'] ?? DEFAULT_RATE_PER_BOX);
+            }
+
+            $totalDeductions = $totalMaterial + $totalLabor + $totalPersonal + $totalCashAdvance + $totalContribution + $totalOther;
+            $guaranteedIncome = (float) ($data['guaranteed_income'] ?? 0);
+            $netPay = max(0.0, $grossPay - $totalDeductions + $guaranteedIncome);
+
+            // Stems / boxes ratio
+            $stemsCut = (int) ($data['stems_cut'] ?? 0);
+            $totalBoxes = (int) ($data['boxes_produced'] ?? 0);
+            $bsRatio = ($stemsCut > 0 && $totalBoxes > 0) ? round($totalBoxes / $stemsCut, 3) : null;
+
+            // Insert main payroll record
+            $stmt = $this->db->prepare(
+                'INSERT INTO payroll_data
+                    (production_id, worker_id, area, week_number, cycle_code,
+                     harvest_date, boxes_produced, rate_per_box, forex_rate,
+                     gross_pay, deductions,
+                     total_material_cost, total_labor_cost, total_personal,
+                     cash_advance, guaranteed_income, other_deductions, total_contributions,
+                     bs_ratio, stems_cut_payroll, net_pay,
+                     period_start, period_end, computed_by)
+                 VALUES
+                    (:pid, :worker_id, :area, :week, :cycle,
+                     :hdate, :boxes, :rate, :forex,
+                     :gross, :ded_total,
+                     :mat, :labor, :personal,
+                     :cash, :guaranteed, :other, :contrib,
+                     :bsratio, :stems, :net,
+                     :ps, :pe, :cb)'
+            );
+            $stmt->execute([
+                ':pid'        => !empty($data['production_id']) ? (int) $data['production_id'] : null,
+                ':worker_id'  => (int) $data['worker_id'],
+                ':area'       => $data['area'] ?? null,
+                ':week'       => $data['week_number'] ?? null,
+                ':cycle'      => $data['cycle_code'] ?? null,
+                ':hdate'      => $data['harvest_date'],
+                ':boxes'      => $totalBoxes,
+                ':rate'       => (float) ($data['rate_per_box'] ?? DEFAULT_RATE_PER_BOX),
+                ':forex'      => (float) ($data['forex_rate'] ?? 1.0),
+                ':gross'      => $grossPay,
+                ':ded_total'  => $totalDeductions,
+                ':mat'        => $totalMaterial,
+                ':labor'      => $totalLabor,
+                ':personal'   => $totalPersonal,
+                ':cash'       => $totalCashAdvance,
+                ':guaranteed' => $guaranteedIncome,
+                ':other'      => $totalOther,
+                ':contrib'    => $totalContribution,
+                ':bsratio'    => $bsRatio,
+                ':stems'      => $stemsCut,
+                ':net'        => $netPay,
+                ':ps'         => $data['period_start'],
+                ':pe'         => $data['period_end'],
+                ':cb'         => $computedBy,
+            ]);
+            $payrollId = (int) $this->db->lastInsertId();
+
+            // Insert box spec details
+            if (!empty($data['box_details'])) {
+                $bdStmt = $this->db->prepare(
+                    'INSERT INTO payroll_box_details
+                        (payroll_id, box_spec, quantity, price_per_box, forex_rate, amount)
+                     VALUES (:pid, :spec, :qty, :price, :forex, :amt)'
+                );
+                foreach ($data['box_details'] as $bd) {
+                    if (!empty($bd['box_spec']) && ((int)($bd['quantity'] ?? 0) > 0)) {
+                        $bdStmt->execute([
+                            ':pid'   => $payrollId,
+                            ':spec'  => $bd['box_spec'],
+                            ':qty'   => (int) $bd['quantity'],
+                            ':price' => (float) ($bd['price_per_box'] ?? 0),
+                            ':forex' => (float) ($bd['forex_rate'] ?? 1.0),
+                            ':amt'   => (float) ($bd['amount'] ?? 0),
+                        ]);
+                    }
+                }
+            }
+
+            // Insert itemized deductions
+            if (!empty($data['deductions'])) {
+                $dedStmt = $this->db->prepare(
+                    'INSERT INTO payroll_deductions
+                        (payroll_id, category, description, quantity, unit_cost, amount)
+                     VALUES (:pid, :cat, :desc, :qty, :ucost, :amt)'
+                );
+                foreach ($data['deductions'] as $ded) {
+                    if (!empty($ded['description']) && (float)($ded['amount'] ?? 0) > 0) {
+                        $dedStmt->execute([
+                            ':pid'   => $payrollId,
+                            ':cat'   => $ded['category'] ?? 'other',
+                            ':desc'  => $ded['description'],
+                            ':qty'   => !empty($ded['quantity']) ? (float) $ded['quantity'] : null,
+                            ':ucost' => !empty($ded['unit_cost']) ? (float) $ded['unit_cost'] : null,
+                            ':amt'   => (float) $ded['amount'],
+                        ]);
+                    }
+                }
+            }
+
+            // Insert contributions
+            if (!empty($data['contributions'])) {
+                $cStmt = $this->db->prepare(
+                    'INSERT INTO payroll_contributions
+                        (payroll_id, contribution_type, previous_amount, current_amount, running_total)
+                     VALUES (:pid, :type, :prev, :curr, :total)'
+                );
+                foreach ($data['contributions'] as $c) {
+                    if (!empty($c['contribution_type'])) {
+                        $curr = (float) ($c['current_amount'] ?? 0);
+                        $prev = (float) ($c['previous_amount'] ?? 0);
+                        $cStmt->execute([
+                            ':pid'   => $payrollId,
+                            ':type'  => $c['contribution_type'],
+                            ':prev'  => $prev,
+                            ':curr'  => $curr,
+                            ':total' => $prev + $curr,
+                        ]);
+                    }
+                }
+            }
+
+            $this->db->commit();
+            return $payrollId;
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Legacy simple compute — kept for backward compatibility.
      */
     public function compute(
         int   $productionId,
@@ -175,5 +344,41 @@ class Payroll
             "SELECT COUNT(*) FROM payroll_data WHERE status = 'pending_review'"
         );
         return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Get box spec details for a payroll record.
+     */
+    public function getBoxDetails(int $payrollId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM payroll_box_details WHERE payroll_id = :pid ORDER BY detail_id ASC'
+        );
+        $stmt->execute([':pid' => $payrollId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get itemized deductions for a payroll record.
+     */
+    public function getDeductions(int $payrollId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM payroll_deductions WHERE payroll_id = :pid ORDER BY category ASC, deduction_id ASC'
+        );
+        $stmt->execute([':pid' => $payrollId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Get contributions for a payroll record.
+     */
+    public function getContributions(int $payrollId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM payroll_contributions WHERE payroll_id = :pid ORDER BY contribution_id ASC'
+        );
+        $stmt->execute([':pid' => $payrollId]);
+        return $stmt->fetchAll();
     }
 }
