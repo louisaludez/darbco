@@ -22,12 +22,13 @@ require_once MODEL_PATH . 'TransactionLog.php';
 
 $inventoryModel = new Inventory();
 $logger         = new TransactionLog();
+$role           = $_SESSION[SESS_ROLE];
 $action         = $_GET['action'] ?? 'list';
 $message = '';
 $error   = '';
 
 // ── ADD ITEM ─────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === ROLE_BOOKKEEPER) {
     Csrf::verify();
     try {
         $data = [
@@ -56,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
 }
 
 // ── UPDATE ITEM ──────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update' && $role === ROLE_BOOKKEEPER) {
     Csrf::verify();
     try {
         $itemId = (int) $_POST['item_id'];
@@ -84,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
 }
 
 // ── RESTOCK ──────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'restock') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'restock' && $role === ROLE_BOOKKEEPER) {
     Csrf::verify();
     $itemId = (int) ($_POST['item_id'] ?? 0);
     $qty    = (float) ($_POST['qty_add'] ?? 0);

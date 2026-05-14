@@ -10,7 +10,7 @@ $role = $_SESSION[SESS_ROLE];
 
     <div class="page-header">
         <h1><i class="bi bi-cash-stack me-2 text-success"></i>Payroll Management</h1>
-        <?php if (in_array($role, [ROLE_PAYROLL, ROLE_ADMIN], true)): ?>
+        <?php if ($role === ROLE_PAYROLL): ?>
         <button class="btn btn-darbco" data-bs-toggle="modal" data-bs-target="#computePayrollModal" id="computePayrollBtn">
             <i class="bi bi-calculator me-2"></i>Compute Harvest Proceeds
         </button>
@@ -57,7 +57,7 @@ $role = $_SESSION[SESS_ROLE];
                         <span class="badge <?= $cls ?>"><?= $lbl ?></span>
                     </td>
                     <td>
-                        <?php if ($p['status'] === 'pending_review' && in_array($role, [ROLE_FINANCE, ROLE_ADMIN], true)): ?>
+                        <?php if ($p['status'] === 'pending_review' && $role === ROLE_FINANCE): ?>
                         <button class="btn btn-sm btn-outline-info review-btn" data-bs-toggle="modal" data-bs-target="#reviewModal"
                                 data-id="<?= $p['payroll_id'] ?>" data-worker="<?= htmlspecialchars($p['worker_name']) ?>"
                                 data-net="<?= number_format($p['net_pay'], 2) ?>">
@@ -85,7 +85,7 @@ $role = $_SESSION[SESS_ROLE];
     </div>
 
     <!-- Compute Payroll Modal (Full Harvest Proceeds) -->
-    <?php if (in_array($role, [ROLE_PAYROLL, ROLE_ADMIN], true)): ?>
+    <?php if ($role === ROLE_PAYROLL): ?>
     <div class="modal fade" id="computePayrollModal" tabindex="-1" aria-labelledby="computePayrollLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">

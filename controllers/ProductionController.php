@@ -29,12 +29,13 @@ $inventoryModel  = new Inventory();
 $workerModel     = new Worker();
 $logger          = new TransactionLog();
 
+$role    = $_SESSION[SESS_ROLE];
 $action  = $_GET['action']  ?? 'list';
 $message = '';
 $error   = '';
 
 // ── CREATE ───────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === ROLE_PRODUCTION) {
     Csrf::verify();
     try {
         // Collect materials array from form (item_id[] qty_used[] price[])
@@ -106,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store') {
 }
 
 // ── UPDATE (Edit Core Fields) ────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update' && $role === ROLE_PRODUCTION) {
     Csrf::verify();
     try {
         $prodId = (int) $_POST['production_id'];

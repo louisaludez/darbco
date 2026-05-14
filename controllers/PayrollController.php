@@ -34,7 +34,7 @@ $role    = $_SESSION[SESS_ROLE];
 
 // ── COMPUTE PAYROLL (Full Harvest Proceeds) ──────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'compute'
-    && in_array($role, [ROLE_PAYROLL, ROLE_ADMIN], true)) {
+    && $role === ROLE_PAYROLL) {
     Csrf::verify();
     try {
         // Collect box spec details
@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'compute'
 
 // ── REVIEW (Finance Officer) ─────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'review'
-    && in_array($role, [ROLE_FINANCE, ROLE_ADMIN], true)) {
+    && $role === ROLE_FINANCE) {
     Csrf::verify();
     $payrollId = (int) $_POST['payroll_id'];
     $remarks   = trim($_POST['remarks'] ?? '');

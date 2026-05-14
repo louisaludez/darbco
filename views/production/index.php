@@ -2,6 +2,7 @@
 // views/production/index.php
 $pageTitle = 'Production Records';
 require_once VIEW_PATH . 'layout/header.php';
+$role = $_SESSION[SESS_ROLE];
 ?>
 <div class="app-shell">
 <?php require_once VIEW_PATH . 'layout/sidebar.php'; ?>
@@ -11,9 +12,11 @@ require_once VIEW_PATH . 'layout/header.php';
         <div>
             <h1><i class="bi bi-boxes me-2 text-success"></i>Production Records</h1>
         </div>
+        <?php if ($role === ROLE_PRODUCTION): ?>
         <button class="btn btn-darbco" data-bs-toggle="modal" data-bs-target="#addProductionModal" id="addProductionBtn">
             <i class="bi bi-plus-circle me-2"></i>New Record
         </button>
+        <?php endif; ?>
     </div>
 
     <?php if ($message): ?>
@@ -37,9 +40,7 @@ require_once VIEW_PATH . 'layout/header.php';
                         <th>#</th><th>Date</th><th>Sub Code</th><th>Worker</th>
                         <th>Group</th><th>Block</th><th>Stems Cut</th><th>Total Boxes</th>
                         <th>Week</th><th>Recorded By</th><th>Created</th>
-                        <?php if ($role === ROLE_ADMIN): ?>
                         <th class="text-end">Actions</th>
-                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -56,8 +57,8 @@ require_once VIEW_PATH . 'layout/header.php';
                         <td><?= htmlspecialchars($r['week_number'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($r['recorded_by_name']) ?></td>
                         <td class="text-muted small"><?= date('M j Y', strtotime($r['created_at'])) ?></td>
-                        <?php if ($role === ROLE_ADMIN): ?>
                         <td class="text-end">
+                            <?php if ($role === ROLE_PRODUCTION): ?>
                             <button class="btn btn-sm btn-outline-primary btn-edit-prod"
                                     data-bs-toggle="modal" data-bs-target="#editProductionModal"
                                     data-id="<?= $r['production_id'] ?>"
@@ -77,14 +78,16 @@ require_once VIEW_PATH . 'layout/header.php';
                                     data-notes="<?= htmlspecialchars($r['notes'] ?? '') ?>">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            <?php endif; ?>
+                            <?php if ($role === ROLE_ADMIN): ?>
                             <form method="POST" action="index.php?page=production&action=delete" class="d-inline"
                                   onsubmit="return confirm('WARNING: Deleting this record will delete its payroll history AND restore used materials to inventory. This cannot be undone. Proceed?');">
                                 <?= Csrf::field() ?>
                                 <input type="hidden" name="production_id" value="<?= $r['production_id'] ?>">
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                             </form>
+                            <?php endif; ?>
                         </td>
-                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

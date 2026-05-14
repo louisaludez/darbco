@@ -2,6 +2,7 @@
 // views/inventory/index.php
 $pageTitle = 'Inventory';
 require_once VIEW_PATH . 'layout/header.php';
+$role = $_SESSION[SESS_ROLE];
 ?>
 <div class="app-shell">
 <?php require_once VIEW_PATH . 'layout/sidebar.php'; ?>
@@ -9,9 +10,11 @@ require_once VIEW_PATH . 'layout/header.php';
 
     <div class="page-header">
         <h1><i class="bi bi-archive me-2 text-success"></i>Inventory Management</h1>
+        <?php if ($role === ROLE_BOOKKEEPER): ?>
         <button class="btn btn-darbco" data-bs-toggle="modal" data-bs-target="#addItemModal" id="addItemBtn">
             <i class="bi bi-plus-circle me-2"></i>Add Item
         </button>
+        <?php endif; ?>
     </div>
 
     <?php if ($message): ?>
@@ -51,13 +54,13 @@ require_once VIEW_PATH . 'layout/header.php';
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php if ($role === ROLE_BOOKKEEPER): ?>
                             <button class="btn btn-sm btn-outline-primary restock-btn"
                                     data-id="<?= $item['item_id'] ?>"
                                     data-name="<?= htmlspecialchars($item['item_name']) ?>"
                                     data-bs-toggle="modal" data-bs-target="#restockModal">
                                 <i class="bi bi-plus-square"></i> Restock
                             </button>
-                            <?php if ($_SESSION[SESS_ROLE] === ROLE_ADMIN || $_SESSION[SESS_ROLE] === ROLE_BOOKKEEPER): ?>
                             <button class="btn btn-sm btn-outline-secondary edit-item-btn"
                                     data-bs-toggle="modal" data-bs-target="#editItemModal"
                                     data-id="<?= $item['item_id'] ?>"
