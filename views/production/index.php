@@ -19,6 +19,25 @@ $role = $_SESSION[SESS_ROLE];
         <?php endif; ?>
     </div>
 
+    <!-- Production Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link <?= !isset($_GET['tab']) || $_GET['tab'] === 'daily_log' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_log">
+                <i class="bi bi-person-lines-fill me-1"></i> Individual ARB Logs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'harvest_parameters' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=harvest_parameters">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Harvest Parameters
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_reports' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_reports">
+                <i class="bi bi-graph-up me-1"></i> Daily Reports
+            </a>
+        </li>
+    </ul>
+
     <?php if ($message): ?>
     <div class="alert alert-success alert-auto-dismiss d-flex align-items-center gap-2">
         <i class="bi bi-check-circle-fill"></i><?= htmlspecialchars($message) ?>

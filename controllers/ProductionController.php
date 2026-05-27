@@ -23,14 +23,19 @@ require_once MODEL_PATH . 'Production.php';
 require_once MODEL_PATH . 'Inventory.php';
 require_once MODEL_PATH . 'Worker.php';
 require_once MODEL_PATH . 'TransactionLog.php';
+require_once MODEL_PATH . 'HarvestParameter.php';
+require_once MODEL_PATH . 'DailyReport.php';
 
 $productionModel = new Production();
 $inventoryModel  = new Inventory();
 $workerModel     = new Worker();
 $logger          = new TransactionLog();
+$hpModel         = new HarvestParameter();
+$drModel         = new DailyReport();
 
 $role    = $_SESSION[SESS_ROLE];
 $action  = $_GET['action']  ?? 'list';
+$tab     = $_GET['tab'] ?? 'daily_log'; // tabs: daily_log, harvest_parameters, daily_reports
 $message = '';
 $error   = '';
 
@@ -163,8 +168,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'delete' && $role === R
 }
 
 // ── DATA FOR VIEW ────────────────────────────────────────────
-$records       = $productionModel->getAll();
-$inventoryList = $inventoryModel->getAll();  // for material dropdown
-$activeWorkers = $workerModel->getActive();
+if ($tab === 'harvest_parameters') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store_hp' && $role === ROLE_PRODUCTION) {
+        Csrf::verify();
+        try {
+            $data = $_POST;
+            
+            // Format defects
+            if (!empty($data['defect_name'])) {
+                $data['defects'] = [];
+                foreach ($data['defect_name'] as $i => $name) {
+                    if (trim($name)) {
+                        $data['defects'][] = [
+                            'name' => trim($name),
+                            'w8' => $data['defect_w8'][$i] ?? null,
+                            'w9' => $data['defect_w9'][$i] ?? null,
+                            'w10' => $data['defect_w10'][$i] ?? null,
+                            'w11' => $data['defect_w11'][$i] ?? null,
+                            'total' => $data['defect_total'][$i] ?? null,
+                        ];
+                    }
+                }
+            }
+            
+            // Format calibrations
+            $data['calibrations'] = [];
+            if (!empty($data['cal_11'])) {
+                $data['calibrations']['CALIBRATION'] = [
+                    'week_11' => $data['cal_11'], 'week_12' => $data['cal_12'] ?? null, 
+                    'week_13' => $data['cal_13'] ?? null, 'week_14' => $data['cal_14'] ?? null
+                ];
+            }
+            if (!empty($data['col_11'])) {
+                $data['calibrations']['COLOR_CODE'] = [
+                    'week_11' => $data['col_11'], 'week_12' => $data['col_12'] ?? null, 
+                    'week_13' => $data['col_13'] ?? null, 'week_14' => $data['col_14'] ?? null
+                ];
+            }
 
-require_once VIEW_PATH . 'production/index.php';
+            // Format farm rejects
+            if (!empty($data['rej_11'])) {
+                $data['farm_rejects'] = [
+                    'code_11' => $data['rej_11'], 'code_12' => $data['rej_12'] ?? null,
+                    'code_13' => $data['rej_13'] ?? null, 'code_14' => $data['rej_14'] ?? null,
+                    'total' => $data['rej_total'] ?? null
+                ];
+            }
+
+            $hpModel->create($data, (int) $_SESSION[SESS_USER_ID]);
+            $message = "Harvest Parameter record saved successfully.";
+        } catch (\Exception $e) {
+            $error = 'Failed to save Harvest Parameter: ' . $e->getMessage();
+        }
+    }
+
+    $hpRecords = $hpModel->getAll();
+    require_once VIEW_PATH . 'production/harvest_parameters.php';
+} elseif ($tab === 'daily_reports') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store_dr' && $role === ROLE_PRODUCTION) {
+        Csrf::verify();
+        try {
+            $data = $_POST;
+            $data['boxes'] = [];
+            
+            if (!empty($data['box_class'])) {
+                foreach ($data['box_class'] as $i => $cls) {
+                    $data['boxes'][] = [
+                        'class' => $cls,
+                        'group' => $data['box_group'][$i] ?? '',
+                        'spec' => $data['box_spec'][$i] ?? '',
+                        'count' => $data['box_count'][$i] ?? ''
+                    ];
+                }
+            }
+            
+            $drModel->create($data, (int) $_SESSION[SESS_USER_ID]);
+            $message = "Daily Production Report saved successfully.";
+        } catch (\Exception $e) {
+            $error = 'Failed to save Daily Report: ' . $e->getMessage();
+        }
+    }
+
+    $drRecords = $drModel->getAll();
+    require_once VIEW_PATH . 'production/daily_reports.php';
+} else {
+    // Default tab: daily_log
+    $records       = $productionModel->getAll();
+    $inventoryList = $inventoryModel->getAll();  // for material dropdown
+    $activeWorkers = $workerModel->getActive();
+
+    require_once VIEW_PATH . 'production/index.php';
+}
