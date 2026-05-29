@@ -43,14 +43,19 @@ $error   = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === ROLE_PRODUCTION) {
     Csrf::verify();
     try {
-        // Collect materials array from form (item_id[] qty_used[] price[])
-        $materials = [];
-        if (!empty($_POST['item_id'])) {
-            foreach ($_POST['item_id'] as $i => $itemId) {
-                $qty   = (float) ($_POST['quantity_used'][$i] ?? 0);
-                $price = (float) ($_POST['price'][$i] ?? 0);
-                if ($itemId && $qty > 0) {
-                    $materials[] = ['item_id' => (int) $itemId, 'quantity_used' => $qty, 'price' => $price];
+        // Collect defects array from form
+        $defects = [];
+        if (!empty($_POST['defect_name'])) {
+            foreach ($_POST['defect_name'] as $i => $name) {
+                if (trim($name)) {
+                    $defects[] = [
+                        'name'  => trim($name),
+                        'w8'    => $_POST['defect_w8'][$i] ?? null,
+                        'w9'    => $_POST['defect_w9'][$i] ?? null,
+                        'w10'   => $_POST['defect_w10'][$i] ?? null,
+                        'w11'   => $_POST['defect_w11'][$i] ?? null,
+                        'total' => $_POST['defect_total'][$i] ?? null,
+                    ];
                 }
             }
         }
@@ -83,6 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === RO
             'worker_id'      => (int) $_POST['worker_id'],
             'boxes_produced' => (int) $_POST['boxes_produced'],
             'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
+            'hands'          => (int) ($_POST['hands'] ?? 0),
+            'small_hands'    => (int) ($_POST['small_hands'] ?? 0),
+            'class_a_fp'     => (int) ($_POST['class_a_fp'] ?? 0),
+            'class_b_h'      => (int) ($_POST['class_b_h'] ?? 0),
+            'class_b_id'     => (int) ($_POST['class_b_id'] ?? 0),
+            'class_b_cl_b'   => (int) ($_POST['class_b_cl_b'] ?? 0),
             'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
             'block_number'   => trim($_POST['block_number'] ?? ''),
             'carrier_name'   => trim($_POST['carrier_name'] ?? ''),
@@ -96,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === RO
             'recorded_by'    => (int) $_SESSION[SESS_USER_ID],
         ];
 
-        $newId = $productionModel->create($data, $materials, $boxBreakdown, $stemDetails);
+        $newId = $productionModel->create($data, $defects, [], $stemDetails);
         $logger->log(
             (int) $_SESSION[SESS_USER_ID],
             'production_insert',
@@ -121,6 +132,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update' && $role === R
             'worker_id'      => (int) $_POST['worker_id'],
             'boxes_produced' => (int) $_POST['boxes_produced'],
             'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
+            'hands'          => (int) ($_POST['hands'] ?? 0),
+            'small_hands'    => (int) ($_POST['small_hands'] ?? 0),
+            'class_a_fp'     => (int) ($_POST['class_a_fp'] ?? 0),
+            'class_b_h'      => (int) ($_POST['class_b_h'] ?? 0),
+            'class_b_id'     => (int) ($_POST['class_b_id'] ?? 0),
+            'class_b_cl_b'   => (int) ($_POST['class_b_cl_b'] ?? 0),
             'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
             'block_number'   => trim($_POST['block_number'] ?? ''),
             'carrier_name'   => trim($_POST['carrier_name'] ?? ''),
@@ -237,7 +254,9 @@ if ($tab === 'harvest_parameters') {
                         'class' => $cls,
                         'group' => $data['box_group'][$i] ?? '',
                         'spec' => $data['box_spec'][$i] ?? '',
-                        'count' => $data['box_count'][$i] ?? ''
+                        'tally' => $data['box_tally'][$i] ?? 0,
+                        'adj' => $data['box_adj'][$i] ?? 0,
+                        'should' => $data['box_should'][$i] ?? 0
                     ];
                 }
             }
@@ -254,7 +273,6 @@ if ($tab === 'harvest_parameters') {
 } else {
     // Default tab: daily_log
     $records       = $productionModel->getAll();
-    $inventoryList = $inventoryModel->getAll();  // for material dropdown
     $activeWorkers = $workerModel->getActive();
 
     require_once VIEW_PATH . 'production/index.php';

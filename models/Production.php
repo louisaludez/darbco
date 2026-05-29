@@ -55,22 +55,22 @@ class Production
      * Wraps in a transaction — inventory deduction is handled
      * by the trg_deduct_inventory MySQL trigger automatically.
      *
-     * @param array $data       Production fields
-     * @param array $materials  [['item_id'=>X,'qty'=>Y], ...]
+     * @param array $data          Production fields
+     * @param array $defects       Defect matrix [['name'=>'A','w8'=>'1',...], ...]
      * @param array $boxBreakdown  Box class/spec breakdown rows
      * @param array $stemDetails   Per-row stem counts [['row_number'=>11,'stem_count'=>5], ...]
      */
-    public function create(array $data, array $materials, array $boxBreakdown = [], array $stemDetails = []): int
+    public function create(array $data, array $defects = [], array $boxBreakdown = [], array $stemDetails = []): int
     {
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO production_data
-                    (harvest_date, worker_id, boxes_produced, stems_cut, group_number,
+                    (harvest_date, worker_id, boxes_produced, stems_cut, hands, small_hands, class_a_fp, class_b_h, class_b_id, class_b_cl_b, group_number,
                      block_number, carrier_name, arrival_time, first_box_out, last_box_out,
                      week_number, cycle_code, field_location, notes, recorded_by)
                  VALUES
-                    (:harvest_date, :worker_id, :boxes_produced, :stems_cut, :group_number,
+                    (:harvest_date, :worker_id, :boxes_produced, :stems_cut, :hands, :small_hands, :class_a_fp, :class_b_h, :class_b_id, :class_b_cl_b, :group_number,
                      :block_number, :carrier_name, :arrival_time, :first_box_out, :last_box_out,
                      :week_number, :cycle_code, :field_location, :notes, :recorded_by)'
             );
@@ -79,6 +79,12 @@ class Production
                 ':worker_id'      => (int) $data['worker_id'],
                 ':boxes_produced' => (int) $data['boxes_produced'],
                 ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
+                ':hands'          => (int) ($data['hands'] ?? 0),
+                ':small_hands'    => (int) ($data['small_hands'] ?? 0),
+                ':class_a_fp'     => (int) ($data['class_a_fp'] ?? 0),
+                ':class_b_h'      => (int) ($data['class_b_h'] ?? 0),
+                ':class_b_id'     => (int) ($data['class_b_id'] ?? 0),
+                ':class_b_cl_b'   => (int) ($data['class_b_cl_b'] ?? 0),
                 ':group_number'   => !empty($data['group_number']) ? (int) $data['group_number'] : null,
                 ':block_number'   => $data['block_number']   ?? null,
                 ':carrier_name'   => $data['carrier_name']   ?? null,
@@ -93,18 +99,26 @@ class Production
             ]);
             $productionId = (int) $this->db->lastInsertId();
 
-            // Insert materials — trigger fires per row
-            $matStmt = $this->db->prepare(
-                'INSERT INTO production_materials (production_id, item_id, quantity_used, unit_price)
-                 VALUES (:pid, :iid, :qty, :price)'
-            );
-            foreach ($materials as $mat) {
-                $matStmt->execute([
-                    ':pid'   => $productionId,
-                    ':iid'   => (int)   $mat['item_id'],
-                    ':qty'   => (float) $mat['quantity_used'],
-                    ':price' => (float) ($mat['price'] ?? 0),
-                ]);
+            // Insert defects
+            if (!empty($defects)) {
+                $defStmt = $this->db->prepare(
+                    'INSERT INTO production_defects
+                        (production_id, defect_name, age_8_wks, age_9_wks, age_10_wks, age_11_wks, total)
+                     VALUES (:pid, :name, :w8, :w9, :w10, :w11, :total)'
+                );
+                foreach ($defects as $def) {
+                    if (trim($def['name'])) {
+                        $defStmt->execute([
+                            ':pid'   => $productionId,
+                            ':name'  => $def['name'],
+                            ':w8'    => $def['w8'] ?? null,
+                            ':w9'    => $def['w9'] ?? null,
+                            ':w10'   => $def['w10'] ?? null,
+                            ':w11'   => $def['w11'] ?? null,
+                            ':total' => $def['total'] ?? null,
+                        ]);
+                    }
+                }
             }
 
             // Insert box breakdown rows
@@ -194,6 +208,12 @@ class Production
                     worker_id      = :worker_id,
                     boxes_produced = :boxes_produced,
                     stems_cut      = :stems_cut,
+                    hands          = :hands,
+                    small_hands    = :small_hands,
+                    class_a_fp     = :class_a_fp,
+                    class_b_h      = :class_b_h,
+                    class_b_id     = :class_b_id,
+                    class_b_cl_b   = :class_b_cl_b,
                     group_number   = :group_number,
                     block_number   = :block_number,
                     carrier_name   = :carrier_name,
@@ -211,6 +231,12 @@ class Production
             ':worker_id'      => (int) $data['worker_id'],
             ':boxes_produced' => (int) $data['boxes_produced'],
             ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
+            ':hands'          => (int) ($data['hands'] ?? 0),
+            ':small_hands'    => (int) ($data['small_hands'] ?? 0),
+            ':class_a_fp'     => (int) ($data['class_a_fp'] ?? 0),
+            ':class_b_h'      => (int) ($data['class_b_h'] ?? 0),
+            ':class_b_id'     => (int) ($data['class_b_id'] ?? 0),
+            ':class_b_cl_b'   => (int) ($data['class_b_cl_b'] ?? 0),
             ':group_number'   => !empty($data['group_number']) ? (int) $data['group_number'] : null,
             ':block_number'   => $data['block_number']   ?? null,
             ':carrier_name'   => $data['carrier_name']   ?? null,
@@ -239,15 +265,14 @@ class Production
     }
 
     /**
-     * Get materials used for a specific production record.
+     * Get defects matrix for a specific production record.
      */
-    public function getMaterials(int $productionId): array
+    public function getDefects(int $productionId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT pm.quantity_used, i.item_name, i.unit
-               FROM production_materials pm
-               JOIN inventory_data i ON i.item_id = pm.item_id
-              WHERE pm.production_id = :pid'
+            'SELECT * FROM production_defects
+              WHERE production_id = :pid
+              ORDER BY id ASC'
         );
         $stmt->execute([':pid' => $productionId]);
         return $stmt->fetchAll();

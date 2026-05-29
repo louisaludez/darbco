@@ -63,20 +63,25 @@ class DailyReport {
             ]);
             $dprId = (int)$this->db->lastInsertId();
 
-            // Insert boxes
             if (!empty($data['boxes'])) {
                 $stmtBox = $this->db->prepare("
-                    INSERT INTO dpr_boxes (dpr_id, box_class, group_name, box_spec, box_count)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO dpr_boxes (dpr_id, box_class, group_name, box_spec, tally_count, adjusted_count, should_be_count)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
                 foreach ($data['boxes'] as $b) {
-                    if (!empty($b['spec']) && isset($b['count']) && $b['count'] !== '') {
+                    $tally = (int)($b['tally'] ?? 0);
+                    $adj = (int)($b['adj'] ?? 0);
+                    $should = (int)($b['should'] ?? 0);
+                    
+                    if (!empty($b['spec']) && ($tally > 0 || $adj > 0 || $should > 0)) {
                         $stmtBox->execute([
                             $dprId,
                             $b['class'],     // 'A' or 'B'
-                            $b['group'],     // 'GRP 1', 'GRP 3', 'HMLND', 'TOTAL'
+                            $b['group'],     // 'GROUP 1', 'GROUP 3'
                             $b['spec'],      // e.g. '4 Hands'
-                            (int)$b['count']
+                            $tally,
+                            $adj,
+                            $should
                         ]);
                     }
                 }

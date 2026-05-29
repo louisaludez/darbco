@@ -106,6 +106,22 @@ CREATE TABLE IF NOT EXISTS production_data (
 ) ENGINE=InnoDB;
 
 -- ============================================================
+-- TABLE: production_defects
+-- Stores defect matrix for individual ARB logs
+-- ============================================================
+CREATE TABLE IF NOT EXISTS production_defects (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    production_id INT UNSIGNED NOT NULL,
+    defect_name VARCHAR(100) NOT NULL,
+    age_8_wks   VARCHAR(20) DEFAULT NULL,
+    age_9_wks   VARCHAR(20) DEFAULT NULL,
+    age_10_wks  VARCHAR(20) DEFAULT NULL,
+    age_11_wks  VARCHAR(20) DEFAULT NULL,
+    total       VARCHAR(20) DEFAULT NULL,
+    CONSTRAINT fk_proddef_prod FOREIGN KEY (production_id) REFERENCES production_data (production_id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- TABLE: production_materials
 -- Junction table: links production records to inventory items
 -- used; drives the automatic inventory deduction

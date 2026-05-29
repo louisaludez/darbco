@@ -130,48 +130,146 @@ $role = $_SESSION[SESS_ROLE];
                         </div>
 
                         <!-- Production Data -->
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-3"><label class="form-label fw-semibold">Total Boxes</label><input type="number" name="boxes_produced" class="form-control" min="0" value="0"></div>
-                            <div class="col-md-3"><label class="form-label fw-semibold">Stems Cut</label><input type="number" name="stems_cut" class="form-control" min="0" value="0"></div>
-                            <div class="col-md-3"><label class="form-label fw-semibold">Rate/Box (₱)</label><input type="number" name="rate_per_box" class="form-control" step="0.01" value="<?= DEFAULT_RATE_PER_BOX ?>"></div>
-                            <div class="col-md-3"><label class="form-label fw-semibold">Prod. Record</label>
-                                <select name="production_id" class="form-select">
-                                    <option value="">-- Optional link --</option>
-                                    <?php foreach ($productionList as $prod): ?>
-                                    <option value="<?= $prod['production_id'] ?>">#<?= $prod['production_id'] ?> — <?= htmlspecialchars($prod['worker_name']) ?> (<?= $prod['harvest_date'] ?>)</option>
-                                    <?php endforeach; ?>
-                                </select>
+                        <div class="card mb-3">
+                            <div class="card-header py-2 fw-bold"><i class="bi bi-bar-chart-fill me-1"></i>Production Data</div>
+                            <div class="card-body p-2">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="border p-2 rounded h-100">
+                                            <h6 class="fw-bold mb-2">CLASS A (13.5 K)</h6>
+                                            <div class="row g-2 align-items-center mb-1">
+                                                <div class="col-6"><label class="form-label mb-0">Big Hands</label></div>
+                                                <div class="col-6"><input type="number" name="class_a_big_hands" class="form-control form-control-sm" min="0" value="0" oninput="recalcProd()"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center mb-1">
+                                                <div class="col-6"><label class="form-label mb-0">Small Hands</label></div>
+                                                <div class="col-6"><input type="number" name="class_a_small_hands" class="form-control form-control-sm" min="0" value="0" oninput="recalcProd()"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center mb-1">
+                                                <div class="col-6"><label class="form-label mb-0">CPs</label></div>
+                                                <div class="col-6"><input type="number" name="class_a_cps" class="form-control form-control-sm" min="0" value="0" oninput="recalcProd()"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center mt-2 border-top pt-2">
+                                                <div class="col-6"><label class="form-label fw-bold mb-0">Total Class A</label></div>
+                                                <div class="col-6"><input type="number" class="form-control form-control-sm bg-light" id="class_a_total" readonly value="0"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border p-2 rounded h-100">
+                                            <div class="row g-2 align-items-center mb-2">
+                                                <div class="col-6"><label class="form-label fw-bold mb-0">CLASS B (13.5 K)</label></div>
+                                                <div class="col-6"><input type="number" name="class_b" class="form-control form-control-sm" min="0" value="0" oninput="recalcProd()"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center mb-2">
+                                                <div class="col-6"><label class="form-label fw-bold text-success mb-0">TOTAL BOXES</label></div>
+                                                <div class="col-6"><input type="number" name="boxes_produced" id="boxes_produced" class="form-control form-control-sm bg-light" readonly value="0"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center mb-2">
+                                                <div class="col-6"><label class="form-label fw-bold mb-0">STEMS CUT</label></div>
+                                                <div class="col-6"><input type="number" name="stems_cut" id="stems_cut" class="form-control form-control-sm" min="0" value="0" oninput="recalcProd()"></div>
+                                            </div>
+                                            <div class="row g-2 align-items-center">
+                                                <div class="col-6"><label class="form-label fw-bold mb-0">BS RATIO</label></div>
+                                                <div class="col-6"><input type="text" id="bs_ratio_display" class="form-control form-control-sm bg-light" readonly value="0.00"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-3 mt-2">
+                                    <div class="col-md-6"><label class="form-label fw-semibold">Rate/Box (₱)</label><input type="number" name="rate_per_box" class="form-control" step="0.01" value="<?= DEFAULT_RATE_PER_BOX ?>"></div>
+                                    <div class="col-md-6"><label class="form-label fw-semibold">Prod. Record</label>
+                                        <select name="production_id" class="form-select">
+                                            <option value="">-- Optional link --</option>
+                                            <?php foreach ($productionList as $prod): ?>
+                                            <option value="<?= $prod['production_id'] ?>">#<?= $prod['production_id'] ?> — <?= htmlspecialchars($prod['worker_name']) ?> (<?= $prod['harvest_date'] ?>)</option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Itemized Deductions -->
-                        <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center py-2">
-                                <span class="fw-bold text-danger"><i class="bi bi-dash-circle me-1"></i>Deductions</span>
-                                <button type="button" class="btn btn-sm btn-outline-danger" id="addDeductionRow"><i class="bi bi-plus"></i> Add</button>
+                        <!-- Deductions Accordion -->
+                        <div class="accordion mb-3 shadow-sm" id="deductionsAccordion">
+                            <!-- A. CONTRIBUTIONS -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingA">
+                                    <button class="accordion-button collapsed fw-bold text-info" type="button" data-bs-toggle="collapse" data-bs-target="#collapseA">
+                                        <i class="bi bi-piggy-bank me-2"></i>A. CONTRIBUTIONS
+                                    </button>
+                                </h2>
+                                <div id="collapseA" class="accordion-collapse collapse" data-bs-parent="#deductionsAccordion">
+                                    <div class="accordion-body p-2 bg-light">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-info bg-white" id="addContribRow"><i class="bi bi-plus"></i> Add</button>
+                                        </div>
+                                        <table class="table table-sm table-bordered bg-white mb-0">
+                                            <thead class="table-light"><tr><th>Type</th><th style="width:120px">Previous (₱)</th><th style="width:120px">Current (₱)</th><th style="width:40px"></th></tr></thead>
+                                            <tbody id="contribRows"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body p-2">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light"><tr><th>Category</th><th>Description</th><th style="width:80px">Qty</th><th style="width:100px">Unit Cost</th><th style="width:110px">Amount (₱)</th><th style="width:40px"></th></tr></thead>
-                                    <tbody id="deductionRows"></tbody>
-                                    <tfoot><tr><td colspan="4" class="text-end fw-bold text-danger">Total Deductions:</td><td class="fw-bold text-danger" id="dedTotal">₱ 0.00</td><td></td></tr></tfoot>
-                                </table>
+                            <!-- B. DIRECT LABOR COST -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingB">
+                                    <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseB">
+                                        <i class="bi bi-people me-2"></i>B. DIRECT LABOR COST
+                                    </button>
+                                </h2>
+                                <div id="collapseB" class="accordion-collapse collapse" data-bs-parent="#deductionsAccordion">
+                                    <div class="accordion-body p-2 bg-light">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger bg-white" onclick="addDedRow('laborRows', 'labor')"><i class="bi bi-plus"></i> Add</button>
+                                        </div>
+                                        <table class="table table-sm table-bordered bg-white mb-0">
+                                            <thead class="table-light"><tr><th>Description</th><th style="width:80px">Qty</th><th style="width:100px">Unit Cost</th><th style="width:110px">Amount (₱)</th><th style="width:40px"></th></tr></thead>
+                                            <tbody id="laborRows" class="ded-group-rows"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- C. PERSONAL ACCOUNT -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingC">
+                                    <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseC">
+                                        <i class="bi bi-person-badge me-2"></i>C. PERSONAL ACCOUNT
+                                    </button>
+                                </h2>
+                                <div id="collapseC" class="accordion-collapse collapse" data-bs-parent="#deductionsAccordion">
+                                    <div class="accordion-body p-2 bg-light">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger bg-white" onclick="addDedRow('personalRows', 'personal')"><i class="bi bi-plus"></i> Add</button>
+                                        </div>
+                                        <table class="table table-sm table-bordered bg-white mb-0">
+                                            <thead class="table-light"><tr><th>Description</th><th style="width:80px">Qty</th><th style="width:100px">Unit Cost</th><th style="width:110px">Amount (₱)</th><th style="width:40px"></th></tr></thead>
+                                            <tbody id="personalRows" class="ded-group-rows"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- D. OTHER DEDUCTIONS -->
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingD">
+                                    <button class="accordion-button collapsed fw-bold text-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseD">
+                                        <i class="bi bi-dash-circle me-2"></i>D. OTHER DEDUCTIONS - Charge to Guaranteed Income
+                                    </button>
+                                </h2>
+                                <div id="collapseD" class="accordion-collapse collapse" data-bs-parent="#deductionsAccordion">
+                                    <div class="accordion-body p-2 bg-light">
+                                        <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger bg-white" onclick="addDedRow('otherRows', 'other')"><i class="bi bi-plus"></i> Add</button>
+                                        </div>
+                                        <table class="table table-sm table-bordered bg-white mb-0">
+                                            <thead class="table-light"><tr><th>Description</th><th style="width:80px">Qty</th><th style="width:100px">Unit Cost</th><th style="width:110px">Amount (₱)</th><th style="width:40px"></th></tr></thead>
+                                            <tbody id="otherRows" class="ded-group-rows"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Contributions -->
-                        <div class="card mb-3">
-                            <div class="card-header d-flex justify-content-between align-items-center py-2">
-                                <span class="fw-bold text-info"><i class="bi bi-piggy-bank me-1"></i>Contributions</span>
-                                <button type="button" class="btn btn-sm btn-outline-info" id="addContribRow"><i class="bi bi-plus"></i> Add</button>
-                            </div>
-                            <div class="card-body p-2">
-                                <table class="table table-sm table-bordered mb-0">
-                                    <thead class="table-light"><tr><th>Type</th><th style="width:120px">Previous (₱)</th><th style="width:120px">Current (₱)</th><th style="width:40px"></th></tr></thead>
-                                    <tbody id="contribRows"></tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <div class="text-end fw-bold text-danger mb-3 px-2">Total Deductions: <span id="dedTotal">₱ 0.00</span></div>
 
                         <!-- Other fields -->
                         <div class="row g-3 mb-3">
@@ -243,12 +341,39 @@ function recalc(){
     });
     document.getElementById('grossTotal').textContent='₱ '+gross.toFixed(2);
     let ded=0;
-    document.querySelectorAll('#deductionRows tr').forEach(r=>{
+    document.querySelectorAll('.ded-group-rows tr').forEach(r=>{
         ded+=+(r.querySelector('[name="ded_amt[]"]')?.value||0);
     });
     document.getElementById('dedTotal').textContent='₱ '+ded.toFixed(2);
     const gi=+(document.querySelector('[name="guaranteed_income"]')?.value||0);
     document.getElementById('netPayPreview').textContent='₱ '+Math.max(0,gross-ded+gi).toFixed(2);
+}
+
+function recalcProd() {
+    const bh = +(document.querySelector('[name="class_a_big_hands"]')?.value || 0);
+    const sh = +(document.querySelector('[name="class_a_small_hands"]')?.value || 0);
+    const cp = +(document.querySelector('[name="class_a_cps"]')?.value || 0);
+    const aTotal = bh + sh + cp;
+    document.getElementById('class_a_total').value = aTotal;
+    
+    const b = +(document.querySelector('[name="class_b"]')?.value || 0);
+    const totalBoxes = aTotal + b;
+    document.getElementById('boxes_produced').value = totalBoxes;
+    
+    const stems = +(document.getElementById('stems_cut')?.value || 0);
+    const bs = (stems > 0) ? (totalBoxes / stems).toFixed(3) : '0.000';
+    document.getElementById('bs_ratio_display').value = bs;
+}
+
+function addDedRow(tbodyId, catValue) {
+    document.getElementById(tbodyId).insertAdjacentHTML('beforeend', `<tr>
+        <input type="hidden" name="ded_cat[]" value="${catValue}">
+        <td><input type="text" name="ded_desc[]" class="form-control form-control-sm" placeholder="Description"></td>
+        <td><input type="number" name="ded_qty[]" class="form-control form-control-sm" step="0.01" min="0"></td>
+        <td><input type="number" name="ded_ucost[]" class="form-control form-control-sm" step="0.01" min="0"></td>
+        <td><input type="number" name="ded_amt[]" class="form-control form-control-sm" step="0.01" min="0" value="0" oninput="recalc()"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();recalc()"><i class="bi bi-x"></i></button></td>
+    </tr>`);
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -260,17 +385,6 @@ document.addEventListener('DOMContentLoaded',()=>{
             <td><input type="number" name="bd_price[]" class="form-control form-control-sm" step="0.01" min="0" value="0" oninput="recalc()"></td>
             <td><input type="number" name="bd_forex[]" class="form-control form-control-sm" step="0.0001" value="1.00" oninput="recalc()"></td>
             <td class="bd-amt fw-semibold">₱ 0.00</td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();recalc()"><i class="bi bi-x"></i></button></td>
-        </tr>`);
-    });
-    // Deduction rows
-    document.getElementById('addDeductionRow')?.addEventListener('click',()=>{
-        document.getElementById('deductionRows').insertAdjacentHTML('beforeend',`<tr>
-            <td><select name="ded_cat[]" class="form-select form-select-sm">${catOptions()}</select></td>
-            <td><input type="text" name="ded_desc[]" class="form-control form-control-sm" placeholder="Description"></td>
-            <td><input type="number" name="ded_qty[]" class="form-control form-control-sm" step="0.01" min="0"></td>
-            <td><input type="number" name="ded_ucost[]" class="form-control form-control-sm" step="0.01" min="0"></td>
-            <td><input type="number" name="ded_amt[]" class="form-control form-control-sm" step="0.01" min="0" value="0" oninput="recalc()"></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove();recalc()"><i class="bi bi-x"></i></button></td>
         </tr>`);
     });

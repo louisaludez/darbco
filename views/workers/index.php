@@ -29,11 +29,8 @@ $role = $_SESSION[SESS_ROLE];
         <div class="table-responsive p-2">
             <table class="table table-hover darbco-table w-100" id="workersTable">
                 <thead>
-                    <tr>
-                        <th>Sub Code</th>
                         <th>First Name</th>
                         <th>Last Name</th>
-                        <th>Area</th>
                         <th>Contact</th>
                         <th>Status</th>
                         <?php if ($role === ROLE_ADMIN): ?>
@@ -43,11 +40,8 @@ $role = $_SESSION[SESS_ROLE];
                 </thead>
                 <tbody>
                 <?php foreach ($workers as $w): ?>
-                    <tr>
-                        <td><span class="badge bg-dark font-monospace"><?= htmlspecialchars($w['sub_code'] ?? '—') ?></span></td>
                         <td class="fw-600"><?= htmlspecialchars($w['first_name']) ?></td>
                         <td class="fw-600"><?= htmlspecialchars($w['last_name']) ?></td>
-                        <td><?= htmlspecialchars($w['area'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($w['contact_number'] ?? '—') ?></td>
                         <td>
                             <?php if ($w['is_active']): ?>
@@ -61,10 +55,8 @@ $role = $_SESSION[SESS_ROLE];
                             <button class="btn btn-sm btn-outline-primary btn-edit-worker"
                                     data-bs-toggle="modal" data-bs-target="#editWorkerModal"
                                     data-id="<?= $w['worker_id'] ?>"
-                                    data-sub="<?= htmlspecialchars($w['sub_code'] ?? '') ?>"
                                     data-first="<?= htmlspecialchars($w['first_name']) ?>"
                                     data-last="<?= htmlspecialchars($w['last_name']) ?>"
-                                    data-area="<?= htmlspecialchars($w['area'] ?? '') ?>"
                                     data-contact="<?= htmlspecialchars($w['contact_number']) ?>"
                                     data-active="<?= $w['is_active'] ?>">
                                 <i class="bi bi-pencil"></i>
@@ -98,26 +90,17 @@ $role = $_SESSION[SESS_ROLE];
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">ARB Sub Code</label>
-                                <input type="text" name="sub_code" class="form-control font-monospace"
-                                       placeholder="e.g. 042" maxlength="20">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">First Name *</label>
                                 <input type="text" name="first_name" class="form-control" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">Last Name *</label>
                                 <input type="text" name="last_name" class="form-control" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Contact Number</label>
                                 <input type="text" name="contact_number" class="form-control" placeholder="e.g. 09123456789">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Area / Farm Location</label>
-                                <input type="text" name="area" class="form-control" placeholder="e.g. Farm 2, Block A">
                             </div>
                         </div>
                     </div>
@@ -143,26 +126,17 @@ $role = $_SESSION[SESS_ROLE];
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">ARB Sub Code</label>
-                                <input type="text" name="sub_code" id="edit_worker_sub" class="form-control font-monospace"
-                                       maxlength="20" placeholder="e.g. 042">
-                            </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">First Name *</label>
                                 <input type="text" name="first_name" id="edit_worker_first" class="form-control" required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <label class="form-label fw-semibold">Last Name *</label>
                                 <input type="text" name="last_name" id="edit_worker_last" class="form-control" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-semibold">Contact Number</label>
                                 <input type="text" name="contact_number" id="edit_worker_contact" class="form-control">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold">Area / Farm Location</label>
-                                <input type="text" name="area" id="edit_worker_area" class="form-control" placeholder="e.g. Farm 2">
                             </div>
                             <div class="col-12">
                                 <div class="form-check form-switch mt-2">
@@ -187,10 +161,8 @@ $role = $_SESSION[SESS_ROLE];
             btn.addEventListener('click', (e) => {
                 const b = e.currentTarget;
                 document.getElementById('edit_worker_id').value      = b.dataset.id;
-                document.getElementById('edit_worker_sub').value     = b.dataset.sub;
                 document.getElementById('edit_worker_first').value   = b.dataset.first;
                 document.getElementById('edit_worker_last').value    = b.dataset.last;
-                document.getElementById('edit_worker_area').value    = b.dataset.area || '';
                 document.getElementById('edit_worker_contact').value = b.dataset.contact;
                 document.getElementById('edit_worker_active').checked = b.dataset.active == '1';
             });

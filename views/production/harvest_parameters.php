@@ -135,11 +135,11 @@ $role = $_SESSION[SESS_ROLE];
                                             <thead class="table-light"><tr><th>Code 11</th><th>12</th><th>13</th><th>14</th><th>Total</th></tr></thead>
                                             <tbody>
                                                 <tr>
-                                                    <td><input type="text" name="rej_11" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="rej_12" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="rej_13" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="rej_14" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="rej_total" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="rej_11" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="rej_12" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="rej_13" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="rej_14" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="rej_total" class="form-control form-control-sm bg-light fw-bold" readonly></td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -164,11 +164,11 @@ $role = $_SESSION[SESS_ROLE];
                                                 <?php foreach ($defaultDefects as $d): ?>
                                                 <tr>
                                                     <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start" value="<?= $d ?>"></td>
-                                                    <td><input type="text" name="defect_w8[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="defect_w9[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="defect_w10[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="defect_w11[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="defect_total[]" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="defect_w8[]" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="defect_w9[]" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="defect_w10[]" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="defect_w11[]" class="form-control form-control-sm"></td>
+                                                    <td><input type="number" name="defect_total[]" class="form-control form-control-sm" readonly></td>
                                                     <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -191,20 +191,64 @@ $role = $_SESSION[SESS_ROLE];
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Defects Matrix Row Addition
     document.getElementById('addDefectRow')?.addEventListener('click', () => {
         document.getElementById('defectRows').insertAdjacentHTML('beforeend', `<tr>
             <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start" placeholder="New Defect"></td>
-            <td><input type="text" name="defect_w8[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="defect_w9[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="defect_w10[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="defect_w11[]" class="form-control form-control-sm"></td>
-            <td><input type="text" name="defect_total[]" class="form-control form-control-sm"></td>
+            <td><input type="number" name="defect_w8[]" class="form-control form-control-sm defect-val"></td>
+            <td><input type="number" name="defect_w9[]" class="form-control form-control-sm defect-val"></td>
+            <td><input type="number" name="defect_w10[]" class="form-control form-control-sm defect-val"></td>
+            <td><input type="number" name="defect_w11[]" class="form-control form-control-sm defect-val"></td>
+            <td><input type="number" name="defect_total[]" class="form-control form-control-sm defect-total" readonly></td>
             <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
         </tr>`);
     });
+
     document.getElementById('defectTable')?.addEventListener('click', e => {
         if (e.target.closest('.remove-defect')) e.target.closest('tr').remove();
     });
+
+    // Auto-calculate Farm Rejects Total
+    const calcRejects = () => {
+        const r11 = parseInt(document.querySelector('input[name="rej_11"]')?.value || 0);
+        const r12 = parseInt(document.querySelector('input[name="rej_12"]')?.value || 0);
+        const r13 = parseInt(document.querySelector('input[name="rej_13"]')?.value || 0);
+        const r14 = parseInt(document.querySelector('input[name="rej_14"]')?.value || 0);
+        const totalInput = document.querySelector('input[name="rej_total"]');
+        if (totalInput) {
+            const sum = r11 + r12 + r13 + r14;
+            totalInput.value = sum > 0 ? sum : '';
+        }
+    };
+
+    const rejectInputs = document.querySelectorAll('input[name^="rej_"]');
+    rejectInputs.forEach(input => {
+        if(input.name !== 'rej_total') {
+            input.addEventListener('input', calcRejects);
+        }
+    });
+
+    // Auto-calculate Defects Matrix Totals
+    const defectTable = document.getElementById('defectTable');
+    if (defectTable) {
+        defectTable.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT' && e.target.name !== 'defect_name[]') {
+                const row = e.target.closest('tr');
+                if (!row) return;
+                
+                const w8 = parseInt(row.querySelector('input[name="defect_w8[]"]')?.value || 0);
+                const w9 = parseInt(row.querySelector('input[name="defect_w9[]"]')?.value || 0);
+                const w10 = parseInt(row.querySelector('input[name="defect_w10[]"]')?.value || 0);
+                const w11 = parseInt(row.querySelector('input[name="defect_w11[]"]')?.value || 0);
+                
+                const totalInput = row.querySelector('input[name="defect_total[]"]');
+                if (totalInput) {
+                    const sum = w8 + w9 + w10 + w11;
+                    totalInput.value = sum > 0 ? sum : '';
+                }
+            }
+        });
+    }
 });
 </script>
 <?php require_once VIEW_PATH . 'layout/footer.php'; ?>

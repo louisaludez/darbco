@@ -136,7 +136,7 @@ class Payroll
             $stmt = $this->db->prepare(
                 'INSERT INTO payroll_data
                     (production_id, worker_id, area, week_number, cycle_code,
-                     harvest_date, boxes_produced, rate_per_box, forex_rate,
+                     harvest_date, boxes_produced, class_a_big_hands, class_a_small_hands, class_a_cps, class_b, rate_per_box, forex_rate,
                      gross_pay, deductions,
                      total_material_cost, total_labor_cost, total_personal,
                      cash_advance, guaranteed_income, other_deductions, total_contributions,
@@ -144,7 +144,7 @@ class Payroll
                      period_start, period_end, computed_by)
                  VALUES
                     (:pid, :worker_id, :area, :week, :cycle,
-                     :hdate, :boxes, :rate, :forex,
+                     :hdate, :boxes, :c_a_bh, :c_a_sh, :c_a_cp, :c_b, :rate, :forex,
                      :gross, :ded_total,
                      :mat, :labor, :personal,
                      :cash, :guaranteed, :other, :contrib,
@@ -159,6 +159,10 @@ class Payroll
                 ':cycle'      => $data['cycle_code'] ?? null,
                 ':hdate'      => $data['harvest_date'],
                 ':boxes'      => $totalBoxes,
+                ':c_a_bh'     => (int) ($data['class_a_big_hands'] ?? 0),
+                ':c_a_sh'     => (int) ($data['class_a_small_hands'] ?? 0),
+                ':c_a_cp'     => (int) ($data['class_a_cps'] ?? 0),
+                ':c_b'        => (int) ($data['class_b'] ?? 0),
                 ':rate'       => (float) ($data['rate_per_box'] ?? DEFAULT_RATE_PER_BOX),
                 ':forex'      => (float) ($data['forex_rate'] ?? 1.0),
                 ':gross'      => $grossPay,
