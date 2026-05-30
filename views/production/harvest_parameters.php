@@ -36,6 +36,16 @@ $role = $_SESSION[SESS_ROLE];
                 <i class="bi bi-graph-up me-1"></i> Daily Reports
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_boxes_per_group' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_boxes_per_group">
+                <i class="bi bi-box-seam me-1"></i> Daily Boxes Per Group
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_production_per_beneficiary' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_production_per_beneficiary">
+                <i class="bi bi-person-badge me-1"></i> Daily Production Per Beneficiary
+            </a>
+        </li>
     </ul>
 
     <?php if ($message): ?>
@@ -89,91 +99,145 @@ $role = $_SESSION[SESS_ROLE];
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body bg-light">
-                        <div class="card shadow-sm border-0 mb-3">
-                            <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">General Information</h6>
-                                <div class="col-md-3"><label class="form-label">Date *</label><input type="date" name="harvest_date" class="form-control" required value="<?= date('Y-m-d') ?>"></div>
-                                <div class="col-md-3"><label class="form-label">Cutting Grp.</label><input type="text" name="cutting_group" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Crew Size</label><input type="number" name="crew_size" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Manhours</label><input type="number" step="0.01" name="manhours" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Stem Cut</label><input type="number" name="stem_cut" class="form-control"></div>
-                                
-                                <div class="col-md-2"><label class="form-label">Farm Rejects</label><input type="number" name="farm_rejects_total" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Ave. Fingerlength</label><input type="number" step="0.01" name="ave_fingerlength" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Ave. Handclass</label><input type="number" step="0.01" name="ave_handclass" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Ave. Stem Weight</label><input type="number" step="0.01" name="ave_stem_weight" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">% Area Covered</label><input type="number" step="0.01" name="percent_area_covered" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label">Ave. Calibration</label><input type="number" step="0.01" name="ave_calibration" class="form-control"></div>
+                        <div class="row mb-3 px-2">
+                            <div class="col-md-4 ms-auto text-end">
+                                <div class="input-group input-group-sm shadow-sm">
+                                    <span class="input-group-text bg-white border-end-0 fw-bold"><i class="bi bi-calendar3 me-2 text-primary"></i>Date:</span>
+                                    <input type="date" name="harvest_date" class="form-control border-start-0 fw-bold text-primary" required value="<?= date('Y-m-d') ?>">
+                                </div>
                             </div>
                         </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="card shadow-sm border-0 h-100">
-                                    <div class="card-body">
-                                        <h6 class="text-primary border-bottom pb-2 mb-3">Calibration & Color Code By Week</h6>
-                                        <table class="table table-sm table-bordered text-center">
-                                            <thead class="table-light"><tr><th></th><th>11 WOF</th><th>12 WOF</th><th>13 WOF</th><th>14 WOF</th></tr></thead>
-                                            <tbody>
-                                                <tr><th class="text-start">CALIBRATION</th>
-                                                    <td><input type="text" name="cal_11" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="cal_12" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="cal_13" class="form-control form-control-sm"></td>
-                                                    <td><input type="text" name="cal_14" class="form-control form-control-sm"></td>
-                                                </tr>
-                                                <tr><th class="text-start">COLOR CODE</th>
-                                                    <td><input type="text" name="col_11" class="form-control form-control-sm" placeholder="YW"></td>
-                                                    <td><input type="text" name="col_12" class="form-control form-control-sm" placeholder="DG"></td>
-                                                    <td><input type="text" name="col_13" class="form-control form-control-sm" placeholder="BLL"></td>
-                                                    <td><input type="text" name="col_14" class="form-control form-control-sm" placeholder="DB"></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                        <div class="accordion" id="hpAccordion">
+                            <div class="accordion-item shadow-sm border-0 mb-3">
+                                <h2 class="accordion-header" id="headingHP">
+                                    <button class="accordion-button bg-white text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHP" aria-expanded="true" aria-controls="collapseHP">
+                                        <i class="bi bi-table me-2 text-primary"></i> Harvest Parameter Matrix
+                                    </button>
+                                </h2>
+                                <div id="collapseHP" class="accordion-collapse collapse show" aria-labelledby="headingHP">
+                                    <div class="accordion-body p-0">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered table-sm align-middle text-center mb-0 hp-matrix-table" id="hpMatrixTable" style="font-size: 0.875rem;">
+                                                <tbody>
+                                                    <!-- Row 1 -->
+                                                    <tr class="bg-light">
+                                                        <th class="text-start" style="width:18%;">CUTTING GRP.</th>
+                                                        <td style="width:12%;"><input type="text" name="cutting_group" class="form-control form-control-sm text-center fw-bold text-primary"></td>
+                                                        <th colspan="6" class="bg-secondary text-white text-uppercase" style="letter-spacing: 1px;">FARM REJECTS (BY AGE)</th>
+                                                    </tr>
+                                                    <!-- Row 2 -->
+                                                    <tr class="bg-light">
+                                                        <th class="text-start">CREW SIZE</th>
+                                                        <td><input type="number" name="crew_size" class="form-control form-control-sm text-center fw-bold text-primary"></td>
+                                                        <th style="width:12%;">CODE</th>
+                                                        <th style="width:11%;">11</th>
+                                                        <th style="width:11%;">12</th>
+                                                        <th style="width:11%;">13</th>
+                                                        <th style="width:11%;">14</th>
+                                                        <th style="width:14%;">TOTAL</th>
+                                                    </tr>
+                                                    <!-- Row 3 -->
+                                                    <tr>
+                                                        <th class="text-start bg-light">MANHOURS</th>
+                                                        <td><input type="number" step="0.01" name="manhours" class="form-control form-control-sm text-center fw-bold text-primary"></td>
+                                                        <td class="bg-light"></td>
+                                                        <th class="bg-light text-muted small">YW</th>
+                                                        <th class="bg-light text-muted small">DG</th>
+                                                        <th class="bg-light text-muted small">BLL</th>
+                                                        <th class="bg-light text-muted small">DB</th>
+                                                        <td class="bg-light"></td>
+                                                    </tr>
+                                                    
+                                                    <!-- Rows 4 to 20 -->
+                                                    <?php
+                                                    $leftLabels = [
+                                                        4 => ['STEM CUT', 'stem_cut', 'number'],
+                                                        5 => ['FARM REJECTS', 'farm_rejects_total', 'number'],
+                                                        6 => ['AVE. FINGERLENGTH', 'ave_fingerlength', 'number', '0.01'],
+                                                        7 => ['AVE. HANDCLASS', 'ave_handclass', 'number', '0.01'],
+                                                        8 => ['AVE. STEM WEIGHT', 'ave_stem_weight', 'number', '0.01'],
+                                                        9 => ['% AREA COVERED', 'percent_area_covered', 'number', '0.01'],
+                                                        10 => ['AVE. CALIBRATION', 'ave_calibration', 'number', '0.01'],
+                                                        11 => ['CALIBRATION BY WEEK', null, null],
+                                                        12 => ['11 WOF', 'cal_11', 'text'],
+                                                        13 => ['12 WOF', 'cal_12', 'text'],
+                                                        14 => ['13 WOF', 'cal_13', 'text'],
+                                                        15 => ['14 WOF', 'cal_14', 'text'],
+                                                        16 => ['COLOR CODE', null, null],
+                                                        17 => ['11 WOF', 'col_11', 'text'],
+                                                        18 => ['12 WOF', 'col_12', 'text'],
+                                                        19 => ['13 WOF', 'col_13', 'text'],
+                                                        20 => ['14 WOF', 'col_14', 'text'],
+                                                    ];
 
-                                        <h6 class="text-primary border-bottom pb-2 mt-4 mb-3">Farm Rejects (By Age)</h6>
-                                        <table class="table table-sm table-bordered text-center">
-                                            <thead class="table-light"><tr><th>Code 11</th><th>12</th><th>13</th><th>14</th><th>Total</th></tr></thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><input type="number" name="rej_11" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="rej_12" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="rej_13" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="rej_14" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="rej_total" class="form-control form-control-sm bg-light fw-bold" readonly></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                                                    for ($i = 4; $i <= 20; $i++):
+                                                        $label = $leftLabels[$i][0];
+                                                        $name = $leftLabels[$i][1];
+                                                        $type = $leftLabels[$i][2] ?? 'text';
+                                                        $step = $leftLabels[$i][3] ?? '';
+                                                    ?>
+                                                    <tr>
+                                                        <th class="text-start bg-light"><?= $label ?></th>
+                                                        <td>
+                                                            <?php if ($name): ?>
+                                                                <input type="<?= $type ?>" <?= $step ? 'step="'.$step.'"' : '' ?> name="<?= $name ?>" class="form-control form-control-sm text-center fw-bold text-primary">
+                                                            <?php endif; ?>
+                                                        </td>
+                                                        <td><input type="text" name="rej_code[]" class="form-control form-control-sm text-center text-uppercase fw-bold text-danger"></td>
+                                                        <td><input type="number" name="rej_11[]" class="form-control form-control-sm text-center rej-val"></td>
+                                                        <td><input type="number" name="rej_12[]" class="form-control form-control-sm text-center rej-val"></td>
+                                                        <td><input type="number" name="rej_13[]" class="form-control form-control-sm text-center rej-val"></td>
+                                                        <td><input type="number" name="rej_14[]" class="form-control form-control-sm text-center rej-val"></td>
+                                                        <td><input type="number" name="rej_total[]" class="form-control form-control-sm text-center rej-total fw-bold bg-light" readonly></td>
+                                                    </tr>
+                                                    <?php endfor; ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="col-md-6">
-                                <div class="card shadow-sm border-0 h-100">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                                            <h6 class="text-primary mb-0">Defects Matrix</h6>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="addDefectRow"><i class="bi bi-plus"></i> Add Row</button>
+
+                            <!-- Defects Matrix -->
+                            <div class="accordion-item shadow-sm border-0 mb-3">
+                                <h2 class="accordion-header" id="headingDefects">
+                                    <button class="accordion-button collapsed bg-white text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDefects" aria-expanded="false" aria-controls="collapseDefects">
+                                        <i class="bi bi-grid-3x3-gap me-2 text-primary"></i> Defects Matrix
+                                    </button>
+                                </h2>
+                                <div id="collapseDefects" class="accordion-collapse collapse" aria-labelledby="headingDefects" data-bs-parent="#hpAccordion">
+                                    <div class="accordion-body p-0">
+                                        <div class="card border-0">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                                    <h6 class="text-primary mb-0 fw-bold">Defects Entry</h6>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="addDefectRow"><i class="bi bi-plus"></i> Add Row</button>
+                                                </div>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered text-center align-middle" id="defectTable" style="font-size: 0.875rem;">
+                                                        <thead class="table-light">
+                                                            <tr><th rowspan="2" class="align-middle text-start" style="width:25%;">DEFECTS</th><th>8 wks</th><th>9 wks</th><th>10 wks</th><th>11 wks</th><th rowspan="2" class="align-middle" style="width:12%;">TOTAL</th><th rowspan="2" style="width:5%;"></th></tr>
+                                                            <tr><th class="small text-muted">YW</th><th class="small text-muted">DG</th><th class="small text-muted">BLL</th><th class="small text-muted">DB</th></tr>
+                                                        </thead>
+                                                        <tbody id="defectRows">
+                                                            <?php $defaultDefects = ['Aurora','Tutor','Casa','Tagotongan','Magolenio','Garado M','Casulad']; ?>
+                                                            <?php foreach ($defaultDefects as $d): ?>
+                                                            <tr>
+                                                                <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start fw-bold" value="<?= $d ?>"></td>
+                                                                <td><input type="number" name="defect_w8[]" class="form-control form-control-sm text-center defect-val"></td>
+                                                                <td><input type="number" name="defect_w9[]" class="form-control form-control-sm text-center defect-val"></td>
+                                                                <td><input type="number" name="defect_w10[]" class="form-control form-control-sm text-center defect-val"></td>
+                                                                <td><input type="number" name="defect_w11[]" class="form-control form-control-sm text-center defect-val"></td>
+                                                                <td><input type="number" name="defect_total[]" class="form-control form-control-sm text-center defect-total fw-bold bg-light" readonly></td>
+                                                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
+                                                            </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <table class="table table-sm table-bordered text-center" id="defectTable">
-                                            <thead class="table-light">
-                                                <tr><th rowspan="2" class="align-middle text-start">DEFECTS</th><th>8 wks</th><th>9 wks</th><th>10 wks</th><th>11 wks</th><th rowspan="2" class="align-middle">TOTAL</th><th rowspan="2"></th></tr>
-                                                <tr><th class="small text-muted">YW</th><th class="small text-muted">DG</th><th class="small text-muted">BLL</th><th class="small text-muted">DB</th></tr>
-                                            </thead>
-                                            <tbody id="defectRows">
-                                                <?php $defaultDefects = ['Aurora','Tutor','Casa','Tagotongan','Magolenio','Garado M','Casulad']; ?>
-                                                <?php foreach ($defaultDefects as $d): ?>
-                                                <tr>
-                                                    <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start" value="<?= $d ?>"></td>
-                                                    <td><input type="number" name="defect_w8[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="defect_w9[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="defect_w10[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="defect_w11[]" class="form-control form-control-sm"></td>
-                                                    <td><input type="number" name="defect_total[]" class="form-control form-control-sm" readonly></td>
-                                                    <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
-                                                </tr>
-                                                <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -209,24 +273,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Auto-calculate Farm Rejects Total
-    const calcRejects = () => {
-        const r11 = parseInt(document.querySelector('input[name="rej_11"]')?.value || 0);
-        const r12 = parseInt(document.querySelector('input[name="rej_12"]')?.value || 0);
-        const r13 = parseInt(document.querySelector('input[name="rej_13"]')?.value || 0);
-        const r14 = parseInt(document.querySelector('input[name="rej_14"]')?.value || 0);
-        const totalInput = document.querySelector('input[name="rej_total"]');
-        if (totalInput) {
-            const sum = r11 + r12 + r13 + r14;
-            totalInput.value = sum > 0 ? sum : '';
-        }
-    };
-
-    const rejectInputs = document.querySelectorAll('input[name^="rej_"]');
-    rejectInputs.forEach(input => {
-        if(input.name !== 'rej_total') {
-            input.addEventListener('input', calcRejects);
-        }
-    });
+    const hpMatrixTable = document.getElementById('hpMatrixTable');
+    if (hpMatrixTable) {
+        hpMatrixTable.addEventListener('input', (e) => {
+            if (e.target.classList.contains('rej-val')) {
+                const row = e.target.closest('tr');
+                if (!row) return;
+                
+                const r11 = parseInt(row.querySelector('input[name="rej_11[]"]')?.value || 0);
+                const r12 = parseInt(row.querySelector('input[name="rej_12[]"]')?.value || 0);
+                const r13 = parseInt(row.querySelector('input[name="rej_13[]"]')?.value || 0);
+                const r14 = parseInt(row.querySelector('input[name="rej_14[]"]')?.value || 0);
+                
+                const totalInput = row.querySelector('input[name="rej_total[]"]');
+                if (totalInput) {
+                    const sum = r11 + r12 + r13 + r14;
+                    totalInput.value = sum > 0 ? sum : '';
+                }
+            }
+        });
+    }
 
     // Auto-calculate Defects Matrix Totals
     const defectTable = document.getElementById('defectTable');

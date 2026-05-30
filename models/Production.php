@@ -16,18 +16,26 @@ class Production
         $this->db = Database::getInstance();
     }
 
-    /**
-     * Return all production records with recorder name.
-     */
     public function getAll(): array
     {
         $stmt = $this->db->query(
             'SELECT p.*, u.full_name AS recorded_by_name, 
                     COALESCE(w.sub_code, \'—\') AS sub_code,
-                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name
+                    COALESCE(p.beneficiary_name, CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\'))) AS worker_name,
+                    sd.stem_11, sd.stem_12, sd.stem_13, sd.stem_14,
+                    SUM(p.stems_cut) OVER (PARTITION BY p.worker_id ORDER BY p.harvest_date ASC, p.production_id ASC ROWS UNBOUNDED PRECEDING) AS running_total
                FROM production_data p
                JOIN users u ON u.user_id = p.recorded_by
                LEFT JOIN workers w ON w.worker_id = p.worker_id
+               LEFT JOIN (
+                   SELECT production_id,
+                          SUM(CASE WHEN `row_number` = 11 THEN stem_count ELSE 0 END) AS stem_11,
+                          SUM(CASE WHEN `row_number` = 12 THEN stem_count ELSE 0 END) AS stem_12,
+                          SUM(CASE WHEN `row_number` = 13 THEN stem_count ELSE 0 END) AS stem_13,
+                          SUM(CASE WHEN `row_number` = 14 THEN stem_count ELSE 0 END) AS stem_14
+                     FROM production_stem_details
+                    GROUP BY production_id
+               ) sd ON sd.production_id = p.production_id
               ORDER BY p.harvest_date DESC, p.created_at DESC'
         );
         return $stmt->fetchAll();
@@ -40,7 +48,7 @@ class Production
     {
         $stmt = $this->db->prepare(
             'SELECT p.*, u.full_name AS recorded_by_name,
-                    CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\')) AS worker_name
+                    COALESCE(p.beneficiary_name, CONCAT(w.first_name, \' \', COALESCE(w.last_name, \'\'))) AS worker_name
                FROM production_data p
                JOIN users u ON u.user_id = p.recorded_by
                LEFT JOIN workers w ON w.worker_id = p.worker_id
@@ -66,36 +74,37 @@ class Production
         try {
             $stmt = $this->db->prepare(
                 'INSERT INTO production_data
-                    (harvest_date, worker_id, boxes_produced, stems_cut, hands, small_hands, class_a_fp, class_b_h, class_b_id, class_b_cl_b, group_number,
+                    (harvest_date, worker_id, beneficiary_name, boxes_produced, stems_cut, hands, small_hands, class_a_fp, class_b_h, class_b_id, class_b_cl_b, group_number,
                      block_number, carrier_name, arrival_time, first_box_out, last_box_out,
                      week_number, cycle_code, field_location, notes, recorded_by)
                  VALUES
-                    (:harvest_date, :worker_id, :boxes_produced, :stems_cut, :hands, :small_hands, :class_a_fp, :class_b_h, :class_b_id, :class_b_cl_b, :group_number,
+                    (:harvest_date, :worker_id, :beneficiary_name, :boxes_produced, :stems_cut, :hands, :small_hands, :class_a_fp, :class_b_h, :class_b_id, :class_b_cl_b, :group_number,
                      :block_number, :carrier_name, :arrival_time, :first_box_out, :last_box_out,
                      :week_number, :cycle_code, :field_location, :notes, :recorded_by)'
             );
             $stmt->execute([
-                ':harvest_date'   => $data['harvest_date'],
-                ':worker_id'      => (int) $data['worker_id'],
-                ':boxes_produced' => (int) $data['boxes_produced'],
-                ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
-                ':hands'          => (int) ($data['hands'] ?? 0),
-                ':small_hands'    => (int) ($data['small_hands'] ?? 0),
-                ':class_a_fp'     => (int) ($data['class_a_fp'] ?? 0),
-                ':class_b_h'      => (int) ($data['class_b_h'] ?? 0),
-                ':class_b_id'     => (int) ($data['class_b_id'] ?? 0),
-                ':class_b_cl_b'   => (int) ($data['class_b_cl_b'] ?? 0),
-                ':group_number'   => !empty($data['group_number']) ? (int) $data['group_number'] : null,
-                ':block_number'   => $data['block_number']   ?? null,
-                ':carrier_name'   => $data['carrier_name']   ?? null,
-                ':arrival_time'   => !empty($data['arrival_time'])   ? $data['arrival_time']   : null,
-                ':first_box_out'  => !empty($data['first_box_out'])  ? $data['first_box_out']  : null,
-                ':last_box_out'   => !empty($data['last_box_out'])   ? $data['last_box_out']   : null,
-                ':week_number'    => $data['week_number']    ?? null,
-                ':cycle_code'     => $data['cycle_code']     ?? null,
-                ':field_location' => $data['field_location'] ?? null,
-                ':notes'          => $data['notes']          ?? null,
-                ':recorded_by'    => (int) $data['recorded_by'],
+                ':harvest_date'     => $data['harvest_date'],
+                ':worker_id'        => !empty($data['worker_id']) ? (int) $data['worker_id'] : null,
+                ':beneficiary_name' => $data['beneficiary_name'] ?? null,
+                ':boxes_produced'   => (int) $data['boxes_produced'],
+                ':stems_cut'        => (int) ($data['stems_cut'] ?? 0),
+                ':hands'            => (int) ($data['hands'] ?? 0),
+                ':small_hands'      => (int) ($data['small_hands'] ?? 0),
+                ':class_a_fp'       => (int) ($data['class_a_fp'] ?? 0),
+                ':class_b_h'        => (int) ($data['class_b_h'] ?? 0),
+                ':class_b_id'       => (int) ($data['class_b_id'] ?? 0),
+                ':class_b_cl_b'     => (int) ($data['class_b_cl_b'] ?? 0),
+                ':group_number'     => !empty($data['group_number']) ? (int) $data['group_number'] : null,
+                ':block_number'     => $data['block_number']   ?? null,
+                ':carrier_name'     => $data['carrier_name']   ?? null,
+                ':arrival_time'     => !empty($data['arrival_time'])   ? $data['arrival_time']   : null,
+                ':first_box_out'    => !empty($data['first_box_out'])  ? $data['first_box_out']  : null,
+                ':last_box_out'     => !empty($data['last_box_out'])   ? $data['last_box_out']   : null,
+                ':week_number'      => $data['week_number']    ?? null,
+                ':cycle_code'       => $data['cycle_code']     ?? null,
+                ':field_location'   => $data['field_location'] ?? null,
+                ':notes'            => $data['notes']          ?? null,
+                ':recorded_by'      => (int) $data['recorded_by'],
             ]);
             $productionId = (int) $this->db->lastInsertId();
 
@@ -148,7 +157,7 @@ class Production
             // Insert per-row stem details (rows 11, 12, 13, 14 from harvest sheet)
             if (!empty($stemDetails)) {
                 $sdStmt = $this->db->prepare(
-                    'INSERT INTO production_stem_details (production_id, row_number, stem_count)
+                    'INSERT INTO production_stem_details (production_id, `row_number`, stem_count)
                      VALUES (:pid, :rn, :sc)'
                 );
                 foreach ($stemDetails as $sd) {
@@ -204,32 +213,34 @@ class Production
     {
         $stmt = $this->db->prepare(
             'UPDATE production_data
-                SET harvest_date   = :harvest_date,
-                    worker_id      = :worker_id,
-                    boxes_produced = :boxes_produced,
-                    stems_cut      = :stems_cut,
-                    hands          = :hands,
-                    small_hands    = :small_hands,
-                    class_a_fp     = :class_a_fp,
-                    class_b_h      = :class_b_h,
-                    class_b_id     = :class_b_id,
-                    class_b_cl_b   = :class_b_cl_b,
-                    group_number   = :group_number,
-                    block_number   = :block_number,
-                    carrier_name   = :carrier_name,
-                    arrival_time   = :arrival_time,
-                    first_box_out  = :first_box_out,
-                    last_box_out   = :last_box_out,
-                    week_number    = :week_number,
-                    cycle_code     = :cycle_code,
-                    field_location = :field_location,
-                    notes          = :notes
-              WHERE production_id  = :id'
+                SET harvest_date     = :harvest_date,
+                    worker_id        = :worker_id,
+                    beneficiary_name = :beneficiary_name,
+                    boxes_produced   = :boxes_produced,
+                    stems_cut        = :stems_cut,
+                    hands            = :hands,
+                    small_hands      = :small_hands,
+                    class_a_fp       = :class_a_fp,
+                    class_b_h        = :class_b_h,
+                    class_b_id       = :class_b_id,
+                    class_b_cl_b     = :class_b_cl_b,
+                    group_number     = :group_number,
+                    block_number     = :block_number,
+                    carrier_name     = :carrier_name,
+                    arrival_time     = :arrival_time,
+                    first_box_out    = :first_box_out,
+                    last_box_out     = :last_box_out,
+                    week_number      = :week_number,
+                    cycle_code       = :cycle_code,
+                    field_location   = :field_location,
+                    notes            = :notes
+              WHERE production_id    = :id'
         );
         return $stmt->execute([
-            ':harvest_date'   => $data['harvest_date'],
-            ':worker_id'      => (int) $data['worker_id'],
-            ':boxes_produced' => (int) $data['boxes_produced'],
+            ':harvest_date'     => $data['harvest_date'],
+            ':worker_id'        => !empty($data['worker_id']) ? (int) $data['worker_id'] : null,
+            ':beneficiary_name' => $data['beneficiary_name'] ?? null,
+            ':boxes_produced'   => (int) $data['boxes_produced'],
             ':stems_cut'      => (int) ($data['stems_cut'] ?? 0),
             ':hands'          => (int) ($data['hands'] ?? 0),
             ':small_hands'    => (int) ($data['small_hands'] ?? 0),

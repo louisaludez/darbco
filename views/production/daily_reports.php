@@ -36,6 +36,16 @@ $role = $_SESSION[SESS_ROLE];
                 <i class="bi bi-graph-up me-1"></i> Daily Reports
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_boxes_per_group' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_boxes_per_group">
+                <i class="bi bi-box-seam me-1"></i> Daily Boxes Per Group
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_production_per_beneficiary' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_production_per_beneficiary">
+                <i class="bi bi-person-badge me-1"></i> Daily Production Per Beneficiary
+            </a>
+        </li>
     </ul>
 
     <?php if ($message): ?>

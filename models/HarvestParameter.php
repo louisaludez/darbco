@@ -37,7 +37,7 @@ class HarvestParameter {
         // Get farm rejects
         $stmtRej = $this->db->prepare("SELECT * FROM hp_farm_rejects WHERE hp_id = ?");
         $stmtRej->execute([$id]);
-        $record['farm_rejects'] = $stmtRej->fetch(PDO::FETCH_ASSOC);
+        $record['farm_rejects'] = $stmtRej->fetchAll(PDO::FETCH_ASSOC);
 
         // Get defects
         $stmtDef = $this->db->prepare("SELECT * FROM hp_defects WHERE hp_id = ?");
@@ -94,20 +94,24 @@ class HarvestParameter {
             }
 
             // Insert farm rejects
-            if (!empty($data['farm_rejects'])) {
-                $fr = $data['farm_rejects'];
+            if (!empty($data['farm_rejects']) && is_array($data['farm_rejects'])) {
                 $stmtRej = $this->db->prepare("
-                    INSERT INTO hp_farm_rejects (hp_id, code_11, code_12, code_13, code_14, total)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO hp_farm_rejects (hp_id, reject_code, code_11, code_12, code_13, code_14, total)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmtRej->execute([
-                    $hpId,
-                    $fr['code_11'] ?? null,
-                    $fr['code_12'] ?? null,
-                    $fr['code_13'] ?? null,
-                    $fr['code_14'] ?? null,
-                    $fr['total'] ?? null
-                ]);
+                foreach ($data['farm_rejects'] as $fr) {
+                    if (!empty($fr['reject_code'])) {
+                        $stmtRej->execute([
+                            $hpId,
+                            $fr['reject_code'],
+                            $fr['code_11'] ?? null,
+                            $fr['code_12'] ?? null,
+                            $fr['code_13'] ?? null,
+                            $fr['code_14'] ?? null,
+                            $fr['total'] ?? null
+                        ]);
+                    }
+                }
             }
 
             // Insert defects

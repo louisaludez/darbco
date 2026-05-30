@@ -25,6 +25,7 @@ require_once MODEL_PATH . 'Worker.php';
 require_once MODEL_PATH . 'TransactionLog.php';
 require_once MODEL_PATH . 'HarvestParameter.php';
 require_once MODEL_PATH . 'DailyReport.php';
+require_once MODEL_PATH . 'DailyBox.php';
 
 $productionModel = new Production();
 $inventoryModel  = new Inventory();
@@ -32,6 +33,7 @@ $workerModel     = new Worker();
 $logger          = new TransactionLog();
 $hpModel         = new HarvestParameter();
 $drModel         = new DailyReport();
+$dbModel         = new DailyBox();
 
 $role    = $_SESSION[SESS_ROLE];
 $action  = $_GET['action']  ?? 'list';
@@ -43,79 +45,64 @@ $error   = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store' && $role === ROLE_PRODUCTION) {
     Csrf::verify();
     try {
-        // Collect defects array from form
-        $defects = [];
-        if (!empty($_POST['defect_name'])) {
-            foreach ($_POST['defect_name'] as $i => $name) {
-                if (trim($name)) {
-                    $defects[] = [
-                        'name'  => trim($name),
-                        'w8'    => $_POST['defect_w8'][$i] ?? null,
-                        'w9'    => $_POST['defect_w9'][$i] ?? null,
-                        'w10'   => $_POST['defect_w10'][$i] ?? null,
-                        'w11'   => $_POST['defect_w11'][$i] ?? null,
-                        'total' => $_POST['defect_total'][$i] ?? null,
-                    ];
+        // Collect global date
+        $harvestDate = $_POST['harvest_date'];
+        $recordedBy = (int) $_SESSION[SESS_USER_ID];
+
+        $beneficiaries = (array) $_POST['beneficiary_name'];
+        $count = count($beneficiaries);
+        $insertedCount = 0;
+
+        for ($i = 0; $i < $count; $i++) {
+            $beneficiary = trim($beneficiaries[$i] ?? '');
+            if (empty($beneficiary)) continue;
+
+            // Per-row stem details
+            $stemDetails = [];
+            foreach ([11, 12, 13, 14] as $rowNum) {
+                $c = (int) ($_POST["stem_row_{$rowNum}"][$i] ?? 0);
+                if ($c > 0) {
+                    $stemDetails[] = ['row_number' => $rowNum, 'stem_count' => $c];
                 }
             }
+
+            $data = [
+                'harvest_date'     => $harvestDate,
+                'worker_id'        => null,
+                'beneficiary_name' => $beneficiary,
+                'boxes_produced'   => 0,
+                'stems_cut'        => (int) ($_POST['stems_cut'][$i] ?? 0),
+                'hands'            => 0,
+                'small_hands'      => 0,
+                'class_a_fp'       => 0,
+                'class_b_h'        => 0,
+                'class_b_id'       => 0,
+                'class_b_cl_b'     => 0,
+                'group_number'     => null,
+                'block_number'     => trim($_POST['block_number'][$i] ?? ''),
+                'carrier_name'     => trim($_POST['carrier_name'][$i] ?? ''),
+                'arrival_time'     => !empty($_POST['arrival_time'][$i]) ? $_POST['arrival_time'][$i] : null,
+                'first_box_out'    => null,
+                'last_box_out'     => null,
+                'week_number'      => '',
+                'cycle_code'       => '',
+                'field_location'   => '',
+                'notes'            => trim($_POST['running_tt1'][$i] ?? ''),
+                'recorded_by'      => $recordedBy,
+            ];
+
+            $newId = $productionModel->create($data, [], [], $stemDetails);
+            $logger->log(
+                $recordedBy,
+                'production_insert',
+                "Production record #{$newId} created for beneficiary {$beneficiary}.",
+                'production_data',
+                $newId
+            );
+            $insertedCount++;
         }
 
-        // Collect box breakdown from form (box_class[] box_spec[] tally[] adj[] should[])
-        $boxBreakdown = [];
-        if (!empty($_POST['bk_spec'])) {
-            foreach ($_POST['bk_spec'] as $i => $spec) {
-                $boxBreakdown[] = [
-                    'box_class' => $_POST['bk_class'][$i]  ?? '',
-                    'box_spec'  => trim($spec),
-                    'tally'     => (int) ($_POST['bk_tally'][$i]  ?? 0),
-                    'adj'       => (int) ($_POST['bk_adj'][$i]    ?? 0),
-                    'should'    => (int) ($_POST['bk_should'][$i] ?? 0),
-                ];
-            }
-        }
-
-        // Collect per-row stem details (rows 11, 12, 13, 14)
-        $stemDetails = [];
-        foreach ([11, 12, 13, 14] as $rowNum) {
-            $count = (int) ($_POST["stem_row_{$rowNum}"] ?? 0);
-            if ($count > 0) {
-                $stemDetails[] = ['row_number' => $rowNum, 'stem_count' => $count];
-            }
-        }
-
-        $data = [
-            'harvest_date'   => $_POST['harvest_date'],
-            'worker_id'      => (int) $_POST['worker_id'],
-            'boxes_produced' => (int) $_POST['boxes_produced'],
-            'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
-            'hands'          => (int) ($_POST['hands'] ?? 0),
-            'small_hands'    => (int) ($_POST['small_hands'] ?? 0),
-            'class_a_fp'     => (int) ($_POST['class_a_fp'] ?? 0),
-            'class_b_h'      => (int) ($_POST['class_b_h'] ?? 0),
-            'class_b_id'     => (int) ($_POST['class_b_id'] ?? 0),
-            'class_b_cl_b'   => (int) ($_POST['class_b_cl_b'] ?? 0),
-            'group_number'   => !empty($_POST['group_number']) ? (int) $_POST['group_number'] : null,
-            'block_number'   => trim($_POST['block_number'] ?? ''),
-            'carrier_name'   => trim($_POST['carrier_name'] ?? ''),
-            'arrival_time'   => $_POST['arrival_time'] ?? null,
-            'first_box_out'  => $_POST['first_box_out'] ?? null,
-            'last_box_out'   => $_POST['last_box_out'] ?? null,
-            'week_number'    => trim($_POST['week_number'] ?? ''),
-            'cycle_code'     => trim($_POST['cycle_code'] ?? ''),
-            'field_location' => trim($_POST['field_location'] ?? ''),
-            'notes'          => trim($_POST['notes'] ?? ''),
-            'recorded_by'    => (int) $_SESSION[SESS_USER_ID],
-        ];
-
-        $newId = $productionModel->create($data, $defects, [], $stemDetails);
-        $logger->log(
-            (int) $_SESSION[SESS_USER_ID],
-            'production_insert',
-            "Production record #{$newId} created for worker ID {$data['worker_id']}.",
-            'production_data',
-            $newId
-        );
-        $message = "Production record #{$newId} saved successfully.";
+        $message = "{$insertedCount} Production record(s) saved successfully.";
     } catch (\Throwable $e) {
         error_log('[ProductionCtrl] ' . $e->getMessage());
         $error = 'Failed to save production record. Please try again.';
@@ -128,9 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'update' && $role === R
     try {
         $prodId = (int) $_POST['production_id'];
         $data = [
-            'harvest_date'   => $_POST['harvest_date'],
-            'worker_id'      => (int) $_POST['worker_id'],
-            'boxes_produced' => (int) $_POST['boxes_produced'],
+            'harvest_date'     => $_POST['harvest_date'],
+            'worker_id'        => null,
+            'beneficiary_name' => trim($_POST['beneficiary_name'] ?? ''),
+            'boxes_produced'   => (int) $_POST['boxes_produced'],
             'stems_cut'      => (int) ($_POST['stems_cut'] ?? 0),
             'hands'          => (int) ($_POST['hands'] ?? 0),
             'small_hands'    => (int) ($_POST['small_hands'] ?? 0),
@@ -224,12 +212,20 @@ if ($tab === 'harvest_parameters') {
             }
 
             // Format farm rejects
-            if (!empty($data['rej_11'])) {
-                $data['farm_rejects'] = [
-                    'code_11' => $data['rej_11'], 'code_12' => $data['rej_12'] ?? null,
-                    'code_13' => $data['rej_13'] ?? null, 'code_14' => $data['rej_14'] ?? null,
-                    'total' => $data['rej_total'] ?? null
-                ];
+            $data['farm_rejects'] = [];
+            if (!empty($data['rej_code'])) {
+                foreach ($data['rej_code'] as $i => $code) {
+                    if (trim($code)) {
+                        $data['farm_rejects'][] = [
+                            'reject_code' => trim($code),
+                            'code_11' => $data['rej_11'][$i] ?? null,
+                            'code_12' => $data['rej_12'][$i] ?? null,
+                            'code_13' => $data['rej_13'][$i] ?? null,
+                            'code_14' => $data['rej_14'][$i] ?? null,
+                            'total'   => $data['rej_total'][$i] ?? null
+                        ];
+                    }
+                }
             }
 
             $hpModel->create($data, (int) $_SESSION[SESS_USER_ID]);
@@ -270,6 +266,150 @@ if ($tab === 'harvest_parameters') {
 
     $drRecords = $drModel->getAll();
     require_once VIEW_PATH . 'production/daily_reports.php';
+} elseif ($tab === 'daily_boxes_per_group') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store_db' && $role === ROLE_PRODUCTION) {
+        Csrf::verify();
+        try {
+            $data = $_POST;
+            $formattedData = [
+                'db_date'       => $data['db_date'],
+                'db_first_time' => $data['db_first_time'] ?? null,
+                'db_last_time'  => $data['db_last_time'] ?? null,
+                'class_a'       => [],
+                'class_b'       => []
+            ];
+
+            // Parse Class A
+            $classARows = ['4/5/6 Hands', '7/8/9 Hands', '4.7 k', '7.2 k', 'BCP', 'BCP', 'BCP', 'BCP'];
+            foreach ($classARows as $idx => $rowLabel) {
+                // Group 1
+                if (!empty($data['g1_tally_a'][$idx]) || !empty($data['g1_adj_a'][$idx]) || !empty($data['g1_should_a'][$idx])) {
+                    $formattedData['class_a'][] = [
+                        'row_label' => $rowLabel,
+                        'group_num' => 1,
+                        'tally'     => $data['g1_tally_a'][$idx] ?? 0,
+                        'adj'       => $data['g1_adj_a'][$idx] ?? 0,
+                        'should_be' => $data['g1_should_a'][$idx] ?? 0,
+                    ];
+                }
+                // Group 3
+                if (!empty($data['g3_tally_a'][$idx]) || !empty($data['g3_adj_a'][$idx]) || !empty($data['g3_should_a'][$idx])) {
+                    $formattedData['class_a'][] = [
+                        'row_label' => $rowLabel,
+                        'group_num' => 3,
+                        'tally'     => $data['g3_tally_a'][$idx] ?? 0,
+                        'adj'       => $data['g3_adj_a'][$idx] ?? 0,
+                        'should_be' => $data['g3_should_a'][$idx] ?? 0,
+                    ];
+                }
+            }
+
+            // Parse Class B
+            $classBRows = ['4/5/6 Hands', 'Sml H / Clusters', 'F. P'];
+            foreach ($classBRows as $idx => $rowLabel) {
+                // Group 1
+                if (!empty($data['g1_tally_b'][$idx]) || !empty($data['g1_adj_b'][$idx]) || !empty($data['g1_should_b'][$idx])) {
+                    $formattedData['class_b'][] = [
+                        'row_label' => $rowLabel,
+                        'group_num' => 1,
+                        'tally'     => $data['g1_tally_b'][$idx] ?? 0,
+                        'adj'       => $data['g1_adj_b'][$idx] ?? 0,
+                        'should_be' => $data['g1_should_b'][$idx] ?? 0,
+                    ];
+                }
+                // Group 3
+                if (!empty($data['g3_tally_b'][$idx]) || !empty($data['g3_adj_b'][$idx]) || !empty($data['g3_should_b'][$idx])) {
+                    $formattedData['class_b'][] = [
+                        'row_label' => $rowLabel,
+                        'group_num' => 3,
+                        'tally'     => $data['g3_tally_b'][$idx] ?? 0,
+                        'adj'       => $data['g3_adj_b'][$idx] ?? 0,
+                        'should_be' => $data['g3_should_b'][$idx] ?? 0,
+                    ];
+                }
+            }
+
+            $dbModel->create($formattedData, (int) $_SESSION[SESS_USER_ID]);
+            $message = "Daily Boxes record submitted successfully!";
+        } catch (\Exception $e) {
+            $error = 'Failed to save Daily Boxes: ' . $e->getMessage();
+        }
+    } elseif ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_db_record' && isset($_GET['id'])) {
+        // AJAX endpoint for viewing a record
+        header('Content-Type: application/json');
+        $record = $dbModel->getById((int) $_GET['id']);
+        if ($record) {
+            echo json_encode(['success' => true, 'data' => $record]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Record not found']);
+        }
+        exit;
+    }
+    
+    $dbRecords = $dbModel->getAll();
+    require_once VIEW_PATH . 'production/daily_boxes_per_group.php';
+} elseif ($tab === 'daily_production_per_beneficiary') {
+    require_once __DIR__ . '/../models/DailyProdBeneficiary.php';
+    $dpbModel = new DailyProdBeneficiary();
+    $message = '';
+    $error = '';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'store_dpb') {
+        Csrf::verify();
+        try {
+            $data = $_POST;
+            $items = [];
+            
+            // Reconstruct array of items from POST arrays
+            if (!empty($data['sub_code']) && is_array($data['sub_code'])) {
+                foreach ($data['sub_code'] as $index => $subCode) {
+                    // Only process row if at least one field has data
+                    if (
+                        !empty($subCode) || 
+                        !empty($data['arb_name'][$index]) || 
+                        !empty($data['stems_cut'][$index])
+                    ) {
+                        $items[] = [
+                            'sub_code'       => $subCode,
+                            'arb_name'       => $data['arb_name'][$index] ?? '',
+                            'stems_cut'      => $data['stems_cut'][$index] ?? '',
+                            'class_a_hands'  => $data['class_a_hands'][$index] ?? '',
+                            'class_a_sh'     => $data['class_a_sh'][$index] ?? '',
+                            'class_a_blank1' => $data['class_a_blank1'][$index] ?? '',
+                            'class_a_fp'     => $data['class_a_fp'][$index] ?? '',
+                            'class_a_blank2' => $data['class_a_blank2'][$index] ?? '',
+                            'class_a_blank3' => $data['class_a_blank3'][$index] ?? '',
+                            'class_a_cl_b'   => $data['class_a_cl_b'][$index] ?? '',
+                            'class_b_h'      => $data['class_b_h'][$index] ?? '',
+                            'class_b_id'     => $data['class_b_id'][$index] ?? '',
+                        ];
+                    }
+                }
+            }
+
+            $formattedData = [
+                'packing_date' => $data['packing_date'],
+                'items'        => $items
+            ];
+
+            $dpbModel->create($formattedData, (int) $_SESSION[SESS_USER_ID]);
+            $message = "Daily Production Per Beneficiary record submitted successfully!";
+        } catch (\Exception $e) {
+            $error = 'Failed to save record: ' . $e->getMessage();
+        }
+    } elseif ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'get_dpb_record' && isset($_GET['id'])) {
+        header('Content-Type: application/json');
+        $record = $dpbModel->getById((int) $_GET['id']);
+        if ($record) {
+            echo json_encode(['success' => true, 'data' => $record]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Record not found']);
+        }
+        exit;
+    }
+
+    $dpbRecords = $dpbModel->getAll();
+    require_once VIEW_PATH . 'production/daily_production_per_beneficiary.php';
 } else {
     // Default tab: daily_log
     $records       = $productionModel->getAll();

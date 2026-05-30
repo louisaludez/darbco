@@ -36,6 +36,16 @@ $role = $_SESSION[SESS_ROLE];
                 <i class="bi bi-graph-up me-1"></i> Daily Reports
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_boxes_per_group' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_boxes_per_group">
+                <i class="bi bi-box-seam me-1"></i> Daily Boxes Per Group
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= isset($_GET['tab']) && $_GET['tab'] === 'daily_production_per_beneficiary' ? 'active fw-bold' : '' ?>" href="index.php?page=production&tab=daily_production_per_beneficiary">
+                <i class="bi bi-person-badge me-1"></i> Daily Production Per Beneficiary
+            </a>
+        </li>
     </ul>
 
     <?php if ($message): ?>
@@ -49,6 +59,7 @@ $role = $_SESSION[SESS_ROLE];
     </div>
     <?php endif; ?>
 
+
     <!-- Records Table -->
     <div class="table-card">
         <div class="card-header">Daily Harvest Log</div>
@@ -56,9 +67,17 @@ $role = $_SESSION[SESS_ROLE];
             <table class="table table-hover darbco-table w-100" id="productionTable">
                 <thead>
                     <tr>
-                        <th>#</th><th>Date</th><th>Sub Code</th><th>Worker</th>
-                        <th>Group</th><th>Block</th><th>Stems Cut</th><th>Total Boxes</th>
-                        <th>Week</th><th>Recorded By</th><th>Created</th>
+                        <th>Date</th>
+                        <th>BENEFICIARY</th>
+                        <th>Blk No.</th>
+                        <th>Name Carerro</th>
+                        <th>Time Arrival</th>
+                        <th>11</th>
+                        <th>12</th>
+                        <th>13</th>
+                        <th>14</th>
+                        <th>Total</th>
+                        <th>Running tt1</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -66,24 +85,24 @@ $role = $_SESSION[SESS_ROLE];
 
                 <?php foreach ($records as $r): ?>
                     <tr>
-                        <td><?= $r['production_id'] ?></td>
                         <td><?= htmlspecialchars($r['harvest_date']) ?></td>
-                        <td><span class="badge bg-dark font-monospace"><?= htmlspecialchars($r['sub_code'] ?? '—') ?></span></td>
                         <td><?= htmlspecialchars($r['worker_name']) ?></td>
-                        <td><?= $r['group_number'] ? 'Group ' . $r['group_number'] : '—' ?></td>
                         <td><?= htmlspecialchars($r['block_number'] ?? '—') ?></td>
+                        <td><?= htmlspecialchars($r['carrier_name'] ?? '—') ?></td>
+                        <td><?= htmlspecialchars($r['arrival_time'] ?? '—') ?></td>
+                        <td><?= number_format((int)($r['stem_11'] ?? 0)) ?></td>
+                        <td><?= number_format((int)($r['stem_12'] ?? 0)) ?></td>
+                        <td><?= number_format((int)($r['stem_13'] ?? 0)) ?></td>
+                        <td><?= number_format((int)($r['stem_14'] ?? 0)) ?></td>
                         <td><?= number_format((int)($r['stems_cut'] ?? 0)) ?></td>
-                        <td><strong><?= number_format($r['boxes_produced']) ?></strong></td>
-                        <td><?= htmlspecialchars($r['week_number'] ?? '—') ?></td>
-                        <td><?= htmlspecialchars($r['recorded_by_name']) ?></td>
-                        <td class="text-muted small"><?= date('M j Y', strtotime($r['created_at'])) ?></td>
+                        <td><strong><?= number_format((int)($r['running_total'] ?? 0)) ?></strong></td>
                         <td class="text-end">
                             <?php if ($role === ROLE_PRODUCTION): ?>
-                            <button class="btn btn-sm btn-outline-primary btn-edit-prod"
-                                    data-bs-toggle="modal" data-bs-target="#editProductionModal"
-                                    data-id="<?= $r['production_id'] ?>"
-                                    data-date="<?= htmlspecialchars($r['harvest_date']) ?>"
-                                    data-worker-id="<?= $r['worker_id'] ?>"
+                                    <button class="btn btn-sm btn-outline-primary btn-edit-prod"
+                                            data-bs-toggle="modal" data-bs-target="#editProductionModal"
+                                            data-id="<?= $r['production_id'] ?>"
+                                            data-date="<?= htmlspecialchars($r['harvest_date']) ?>"
+                                            data-beneficiary="<?= htmlspecialchars($r['worker_name']) ?>"
                                     data-boxes="<?= $r['boxes_produced'] ?>"
                                     data-stems="<?= $r['stems_cut'] ?? 0 ?>"
                                     data-group="<?= $r['group_number'] ?? '' ?>"
@@ -133,144 +152,56 @@ $role = $_SESSION[SESS_ROLE];
                     </div>
                     <div class="modal-body bg-light">
                         <div class="card shadow-sm border-0 mb-3">
-                            <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">General Information</h6>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Packing Date <span class="text-danger">*</span></label>
-                                    <input type="date" name="harvest_date" class="form-control" required value="<?= date('Y-m-d') ?>">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Worker / ARB <span class="text-danger">*</span></label>
-                                    <select name="worker_id" class="form-select" required>
-                                        <option value="">-- Select ARB --</option>
-                                        <?php foreach ($activeWorkers as $w): ?>
-                                        <option value="<?= $w['worker_id'] ?>">
-                                            <?= htmlspecialchars(($w['sub_code'] ? '[' . $w['sub_code'] . '] ' : '') . $w['first_name'] . ' ' . $w['last_name']) ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Group</label>
-                                    <select name="group_number" class="form-select">
-                                        <option value="">-- Group --</option>
-                                        <option value="1">Group 1</option>
-                                        <option value="3">Group 3</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Block No.</label>
-                                    <input type="text" name="block_number" class="form-control" placeholder="e.g. 10MAY">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Stems Cut</label>
-                                    <input type="number" name="stems_cut" class="form-control" min="0" placeholder="0">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card shadow-sm border-0 mb-3">
-                            <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">Harvest Sheet Fields</h6>
-                                <div class="col-md-3">
-                                    <label class="form-label fw-semibold">Carrier Name</label>
-                                    <input type="text" name="carrier_name" class="form-control" placeholder="Name Carrero">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Arrival Time</label>
-                                    <input type="time" name="arrival_time" class="form-control">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">1st Box Out</label>
-                                    <input type="time" name="first_box_out" class="form-control">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Last Box Out</label>
-                                    <input type="time" name="last_box_out" class="form-control">
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label fw-semibold">Week</label>
-                                    <input type="text" name="week_number" class="form-control" placeholder="Z">
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Cycle</label>
-                                    <input type="text" name="cycle_code" class="form-control" placeholder="e.g. C28">
-                                </div>
-                                
-                                <div class="col-md-2">
-                                    <label class="form-label fw-semibold">Total Boxes <span class="text-danger">*</span></label>
-                                    <input type="number" name="boxes_produced" class="form-control" min="0" required placeholder="auto or manual">
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label fw-semibold">Field Location</label>
-                                    <input type="text" name="field_location" class="form-control" placeholder="e.g. Block A, Farm 2">
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label fw-semibold">Notes</label>
-                                    <input type="text" name="notes" class="form-control" placeholder="Optional notes...">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="card shadow-sm border-0 h-100">
-                                    <div class="card-body">
-                                        <h6 class="text-success border-bottom pb-2 mb-3"><i class="bi bi-grid-1x2 me-1"></i>Stem Counts Per Row</h6>
-                                        <div class="row g-2 mb-4">
-                                            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text">Row 11</span><input type="number" name="stem_row_11" class="form-control" min="0" placeholder="0"></div></div>
-                                            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text">Row 12</span><input type="number" name="stem_row_12" class="form-control" min="0" placeholder="0"></div></div>
-                                            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text">Row 13</span><input type="number" name="stem_row_13" class="form-control" min="0" placeholder="0"></div></div>
-                                            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text">Row 14</span><input type="number" name="stem_row_14" class="form-control" min="0" placeholder="0"></div></div>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-2 mt-4 border-top pt-3">
-                                            <h6 class="text-primary mb-0"><i class="bi bi-list-check me-1"></i>Production Form Data</h6>
-                                        </div>
-                                        <div class="row g-2 mb-3">
-                                            <div class="col-md-4"><label class="form-label mb-0 small">Hands</label><input type="number" name="hands" class="form-control form-control-sm" min="0" placeholder="0"></div>
-                                            <div class="col-md-4"><label class="form-label mb-0 small">SH (Small Hands)</label><input type="number" name="small_hands" class="form-control form-control-sm" min="0" placeholder="0"></div>
-                                            <div class="col-md-4"><label class="form-label mb-0 small text-success">CLASS A: F.P</label><input type="number" name="class_a_fp" class="form-control form-control-sm border-success" min="0" placeholder="0"></div>
-                                        </div>
-                                        <div class="row g-2">
-                                            <div class="col-md-4"><label class="form-label mb-0 small text-warning">CLASS B: H</label><input type="number" name="class_b_h" class="form-control form-control-sm border-warning" min="0" placeholder="0"></div>
-                                            <div class="col-md-4"><label class="form-label mb-0 small text-warning">CLASS B: ID</label><input type="number" name="class_b_id" class="form-control form-control-sm border-warning" min="0" placeholder="0"></div>
-                                            <div class="col-md-4"><label class="form-label mb-0 small text-warning">CLASS B: CL-B</label><input type="number" name="class_b_cl_b" class="form-control form-control-sm border-warning" min="0" placeholder="0"></div>
-                                        </div>
+                            <div class="card-body">
+                                <div class="row mb-3 align-items-center">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold mb-1">Packing Date <span class="text-danger">*</span></label>
+                                        <input type="date" name="harvest_date" class="form-control form-control-sm" required value="<?= date('Y-m-d') ?>">
+                                    </div>
+                                    <div class="col-md-9 text-end mt-3 mt-md-0">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="addArbRow"><i class="bi bi-plus"></i> Add Row</button>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="card shadow-sm border-0 h-100">
-                                    <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                                            <h6 class="text-primary mb-0">Defects Matrix</h6>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="addDefectRow"><i class="bi bi-plus"></i> Add Row</button>
-                                        </div>
-                                        <div class="table-responsive">
-                                            <table class="table table-sm table-bordered text-center" id="defectTable">
-                                                <thead class="table-light">
-                                                    <tr><th rowspan="2" class="align-middle text-start">DEFECTS</th><th>8 wks</th><th>9 wks</th><th>10 wks</th><th>11 wks</th><th rowspan="2" class="align-middle">TOTAL</th><th rowspan="2"></th></tr>
-                                                    <tr><th class="small text-muted">YW</th><th class="small text-muted">DG</th><th class="small text-muted">BLL</th><th class="small text-muted">DB</th></tr>
-                                                </thead>
-                                                <tbody id="defectRows">
-                                                    <?php $defaultDefects = ['Aurora','Tutor','Casa','Tagotongan','Magolenio','Garado M','Casulad']; ?>
-                                                    <?php foreach ($defaultDefects as $d): ?>
-                                                    <tr>
-                                                        <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start" value="<?= $d ?>"></td>
-                                                        <td><input type="number" name="defect_w8[]" class="form-control form-control-sm defect-val" min="0"></td>
-                                                        <td><input type="number" name="defect_w9[]" class="form-control form-control-sm defect-val" min="0"></td>
-                                                        <td><input type="number" name="defect_w10[]" class="form-control form-control-sm defect-val" min="0"></td>
-                                                        <td><input type="number" name="defect_w11[]" class="form-control form-control-sm defect-val" min="0"></td>
-                                                        <td><input type="number" name="defect_total[]" class="form-control form-control-sm bg-light fw-bold defect-total" readonly></td>
-                                                        <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
-                                                    </tr>
-                                                    <?php endforeach; ?>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered text-center" id="arbTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="align-middle text-start" style="min-width: 200px;">BENEFICIARY</th>
+                                                <th class="align-middle" style="min-width: 100px;">Blk No.</th>
+                                                <th class="align-middle" style="min-width: 150px;">Name Carerro</th>
+                                                <th class="align-middle" style="min-width: 120px;">Time Arrival</th>
+                                                <th class="align-middle" style="min-width: 70px;">11</th>
+                                                <th class="align-middle" style="min-width: 70px;">12</th>
+                                                <th class="align-middle" style="min-width: 70px;">13</th>
+                                                <th class="align-middle" style="min-width: 70px;">14</th>
+                                                <th class="align-middle" style="min-width: 80px;">Total</th>
+                                                <th class="align-middle" style="min-width: 100px;">Running tt1</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="arb-group border-bottom border-dark border-2">
+                                            <tr class="parent-row bg-white">
+                                                <td>
+                                                    <input type="text" name="beneficiary_name[]" class="form-control form-control-sm parent-beneficiary" placeholder="Enter Beneficiary" required>
+                                                </td>
+                                                <td><input type="text" name="block_number[]" class="form-control form-control-sm parent-block"></td>
+                                                <td><input type="text" name="carrier_name[]" class="form-control form-control-sm"></td>
+                                                <td><input type="time" name="arrival_time[]" class="form-control form-control-sm"></td>
+                                                <td><input type="number" name="stem_row_11[]" class="form-control form-control-sm arb-stem-val" min="0"></td>
+                                                <td><input type="number" name="stem_row_12[]" class="form-control form-control-sm arb-stem-val" min="0"></td>
+                                                <td><input type="number" name="stem_row_13[]" class="form-control form-control-sm arb-stem-val" min="0"></td>
+                                                <td><input type="number" name="stem_row_14[]" class="form-control form-control-sm arb-stem-val" min="0"></td>
+                                                <td><input type="number" name="stems_cut[]" class="form-control form-control-sm bg-light fw-bold arb-stem-total" readonly></td>
+                                                <td><input type="number" name="running_tt1[]" class="form-control form-control-sm text-primary fw-bold" min="0"></td>
+                                                <td>
+                                                    <div class="d-flex gap-1 actions-cell">
+                                                        <button type="button" class="btn btn-sm btn-outline-success clone-arb" tabindex="-1" title="Add another Carerro for this Beneficiary"><i class="bi bi-plus-square"></i></button>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger remove-arb" tabindex="-1" title="Remove Row"><i class="bi bi-x"></i></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -296,52 +227,62 @@ $role = $_SESSION[SESS_ROLE];
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body bg-light">
-                        <div class="alert alert-info py-2 small"><i class="bi bi-info-circle me-1"></i>Box breakdown &amp; defects cannot be edited after creation.</div>
                         <div class="card shadow-sm border-0 mb-3">
                             <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">General Information</h6>
-                                <div class="col-md-3"><label class="form-label fw-semibold">Harvest Date *</label><input type="date" name="harvest_date" id="edit_harvest_date" class="form-control" required></div>
-                                <div class="col-md-3"><label class="form-label fw-semibold">Worker / ARB *</label>
-                                    <select name="worker_id" id="edit_worker_id" class="form-select" required>
-                                        <option value="">-- Select ARB --</option>
-                                        <?php foreach ($activeWorkers as $w): ?>
-                                        <option value="<?= $w['worker_id'] ?>"><?= htmlspecialchars(($w['sub_code'] ? '[' . $w['sub_code'] . '] ' : '') . $w['first_name'] . ' ' . $w['last_name']) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Packing Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="harvest_date" id="edit_harvest_date" class="form-control" required>
                                 </div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Group</label>
-                                    <select name="group_number" id="edit_group_number" class="form-select"><option value="">-- Group --</option><option value="1">Group 1</option><option value="3">Group 3</option></select>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">BENEFICIARY / ARB <span class="text-danger">*</span></label>
+                                    <input type="text" name="beneficiary_name" id="edit_beneficiary_name" class="form-control" required>
                                 </div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Block No.</label><input type="text" name="block_number" id="edit_block_number" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Stems Cut</label><input type="number" name="stems_cut" id="edit_stems_cut" class="form-control" min="0"></div>
-                            </div>
-                        </div>
-
-                        <div class="card shadow-sm border-0 mb-3">
-                            <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">Production Form Data</h6>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Hands</label><input type="number" name="hands" id="edit_hands" class="form-control" min="0"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Small Hands</label><input type="number" name="small_hands" id="edit_small_hands" class="form-control" min="0"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold text-success">CLASS A: F.P</label><input type="number" name="class_a_fp" id="edit_class_a_fp" class="form-control border-success" min="0"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold text-warning">CLASS B: H</label><input type="number" name="class_b_h" id="edit_class_b_h" class="form-control border-warning" min="0"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold text-warning">CLASS B: ID</label><input type="number" name="class_b_id" id="edit_class_b_id" class="form-control border-warning" min="0"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold text-warning">CLASS B: CL-B</label><input type="number" name="class_b_cl_b" id="edit_class_b_cl_b" class="form-control border-warning" min="0"></div>
-                            </div>
-                        </div>
-
-                        <div class="card shadow-sm border-0 mb-3">
-                            <div class="card-body row g-3">
-                                <h6 class="text-primary border-bottom pb-2 mb-3">Harvest Sheet Fields</h6>
-                                <div class="col-md-3"><label class="form-label fw-semibold">Carrier</label><input type="text" name="carrier_name" id="edit_carrier_name" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Arrival</label><input type="time" name="arrival_time" id="edit_arrival_time" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">1st Box Out</label><input type="time" name="first_box_out" id="edit_first_box_out" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Last Box Out</label><input type="time" name="last_box_out" id="edit_last_box_out" class="form-control"></div>
-                                <div class="col-md-1"><label class="form-label fw-semibold">Week</label><input type="text" name="week_number" id="edit_week_number" class="form-control"></div>
-                                <div class="col-md-2"><label class="form-label fw-semibold">Cycle</label><input type="text" name="cycle_code" id="edit_cycle_code" class="form-control"></div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Blk No.</label>
+                                    <input type="text" name="block_number" id="edit_block_number" class="form-control">
+                                </div>
                                 
-                                <div class="col-md-2"><label class="form-label fw-semibold">Total Boxes *</label><input type="number" name="boxes_produced" id="edit_boxes_produced" class="form-control" min="0" required></div>
-                                <div class="col-md-5"><label class="form-label fw-semibold">Field Location</label><input type="text" name="field_location" id="edit_field_location" class="form-control"></div>
-                                <div class="col-md-5"><label class="form-label fw-semibold">Notes</label><input type="text" name="notes" id="edit_notes" class="form-control"></div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Name Carerro</label>
+                                    <input type="text" name="carrier_name" id="edit_carrier_name" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Time Arrival</label>
+                                    <input type="time" name="arrival_time" id="edit_arrival_time" class="form-control">
+                                </div>
+
+                                <div class="col-12 mt-4">
+                                    <h6 class="text-success border-bottom pb-2 mb-3"><i class="bi bi-grid-1x2 me-1"></i>Stem Counts Per Row</h6>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">11</label>
+                                    <input type="number" name="stem_row_11" id="edit_stem_row_11" class="form-control" min="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">12</label>
+                                    <input type="number" name="stem_row_12" id="edit_stem_row_12" class="form-control" min="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">13</label>
+                                    <input type="number" name="stem_row_13" id="edit_stem_row_13" class="form-control" min="0">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">14</label>
+                                    <input type="number" name="stem_row_14" id="edit_stem_row_14" class="form-control" min="0">
+                                </div>
+
+                                <div class="col-md-6 mt-4">
+                                    <label class="form-label fw-semibold text-primary">Total</label>
+                                    <input type="number" name="stems_cut" id="edit_stems_cut" class="form-control border-primary" min="0">
+                                </div>
+                                <div class="col-md-6 mt-4">
+                                    <label class="form-label fw-semibold text-primary">Running tt1</label>
+                                    <input type="number" name="running_tt1" id="edit_running_tt1" class="form-control border-primary" min="0">
+                                </div>
+                                
+                                <!-- Hidden field to satisfy backend constraints -->
+                                <input type="hidden" name="boxes_produced" id="edit_boxes_produced" value="0">
                             </div>
                         </div>
                     </div>
@@ -359,32 +300,88 @@ $role = $_SESSION[SESS_ROLE];
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
-    document.getElementById('addDefectRow')?.addEventListener('click', () => {
-        document.getElementById('defectRows').insertAdjacentHTML('beforeend', `<tr>
-            <td><input type="text" name="defect_name[]" class="form-control form-control-sm text-start" placeholder="New Defect"></td>
-            <td><input type="number" name="defect_w8[]" class="form-control form-control-sm defect-val" min="0"></td>
-            <td><input type="number" name="defect_w9[]" class="form-control form-control-sm defect-val" min="0"></td>
-            <td><input type="number" name="defect_w10[]" class="form-control form-control-sm defect-val" min="0"></td>
-            <td><input type="number" name="defect_w11[]" class="form-control form-control-sm defect-val" min="0"></td>
-            <td><input type="number" name="defect_total[]" class="form-control form-control-sm bg-light fw-bold defect-total" readonly></td>
-            <td><button type="button" class="btn btn-sm btn-outline-danger remove-defect"><i class="bi bi-x"></i></button></td>
-        </tr>`);
+    // ARB Table Bulk Entry Logic
+    document.getElementById('addArbRow')?.addEventListener('click', () => {
+        const firstGroup = document.querySelector('.arb-group');
+        if (firstGroup) {
+            const newGroup = firstGroup.cloneNode(true);
+            // Remove any child rows that were copied
+            newGroup.querySelectorAll('.child-row').forEach(r => r.remove());
+            // Clear inputs in the parent row
+            newGroup.querySelectorAll('input').forEach(input => input.value = '');
+            // keep the same select options but reset value
+            newGroup.querySelectorAll('select').forEach(select => select.value = '');
+            document.getElementById('arbTable').appendChild(newGroup);
+        }
     });
-    
-    const defectTable = document.getElementById('defectTable');
-    defectTable?.addEventListener('click', e => {
-        if (e.target.closest('.remove-defect')) e.target.closest('tr').remove();
+
+    const arbTable = document.getElementById('arbTable');
+    arbTable?.addEventListener('click', e => {
+        if (e.target.closest('.remove-arb')) {
+            const row = e.target.closest('tr');
+            const tbody = row.closest('.arb-group');
+            // If it's a parent row and there are other groups, remove the whole group
+            if (row.classList.contains('parent-row')) {
+                const groups = document.querySelectorAll('.arb-group');
+                if (groups.length > 1) {
+                    tbody.remove();
+                } else {
+                    alert('You must have at least one ARB group.');
+                }
+            } else {
+                // If it's a child row, just remove the row
+                row.remove();
+            }
+        } else if (e.target.closest('.clone-arb')) {
+            const row = e.target.closest('tr');
+            const tbody = row.closest('.arb-group');
+            const newRow = row.cloneNode(true);
+            
+            newRow.classList.remove('parent-row', 'bg-white');
+            newRow.classList.add('child-row', 'bg-light');
+            
+            // Remove the plus button
+            const cloneBtn = newRow.querySelector('.clone-arb');
+            if (cloneBtn) cloneBtn.remove();
+            
+            // Make beneficiary and block readonly
+            const benInput = newRow.querySelector('.parent-beneficiary');
+            if (benInput) { benInput.readOnly = true; benInput.classList.remove('parent-beneficiary'); }
+            
+            const blkInput = newRow.querySelector('.parent-block');
+            if (blkInput) { blkInput.readOnly = true; blkInput.classList.remove('parent-block'); }
+            
+            const keepNames = ['beneficiary_name[]', 'block_number[]'];
+            newRow.querySelectorAll('input').forEach(input => {
+                if (!keepNames.includes(input.name)) {
+                    input.value = '';
+                }
+            });
+            tbody.appendChild(newRow);
+        }
     });
-    
-    defectTable?.addEventListener('input', e => {
-        if (e.target.classList.contains('defect-val')) {
+
+    arbTable?.addEventListener('input', e => {
+        // Sync parent beneficiary and block to children
+        if (e.target.classList.contains('parent-beneficiary') || e.target.classList.contains('parent-block')) {
+            const tbody = e.target.closest('.arb-group');
+            const targetName = e.target.name;
+            const targetVal = e.target.value;
+            tbody.querySelectorAll(`.child-row input[name="${targetName}"]`).forEach(input => {
+                input.value = targetVal;
+            });
+        }
+    });
+
+    arbTable?.addEventListener('input', e => {
+        if (e.target.classList.contains('arb-stem-val')) {
             const row = e.target.closest('tr');
             let total = 0;
-            row.querySelectorAll('.defect-val').forEach(input => {
+            row.querySelectorAll('.arb-stem-val').forEach(input => {
                 const val = parseFloat(input.value);
                 if (!isNaN(val)) total += val;
             });
-            const totalInput = row.querySelector('.defect-total');
+            const totalInput = row.querySelector('.arb-stem-total');
             if (totalInput) totalInput.value = total > 0 ? total : '';
         }
     });
@@ -395,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const b = e.currentTarget;
             document.getElementById('edit_prod_id').value = b.dataset.id;
             document.getElementById('edit_harvest_date').value = b.dataset.date;
-            document.getElementById('edit_worker_id').value = b.dataset.workerId;
+            document.getElementById('edit_beneficiary_name').value = b.dataset.beneficiary || '';
             document.getElementById('edit_boxes_produced').value = b.dataset.boxes;
             document.getElementById('edit_stems_cut').value = b.dataset.stems || '';
             document.getElementById('edit_group_number').value = b.dataset.group || '';
