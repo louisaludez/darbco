@@ -44,9 +44,9 @@ class DailyReport {
             $stmt = $this->db->prepare("
                 INSERT INTO daily_production_reports (
                     report_date, week_no, brand_name, crew_size,
-                    first_fruit_in, last_box_out, first_box_out,
+                    first_fruit_in, last_fruit_in, last_box_out, first_box_out,
                     volume_stems_cut, bs_ratio, per_pack_plan, recorded_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $data['report_date'],
@@ -54,6 +54,7 @@ class DailyReport {
                 $data['brand_name'] ?? null,
                 $data['crew_size'] ?? 0,
                 !empty($data['first_fruit_in']) ? $data['first_fruit_in'] : null,
+                !empty($data['last_fruit_in']) ? $data['last_fruit_in'] : null,
                 !empty($data['last_box_out']) ? $data['last_box_out'] : null,
                 !empty($data['first_box_out']) ? $data['first_box_out'] : null,
                 $data['volume_stems_cut'] ?? 0,
